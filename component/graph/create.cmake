@@ -41,7 +41,7 @@
 ##            REPACK (flag; static publisher only — merge first-level
 ##            NOINSTALL static depend/link dests into this id's prefix
 ##            archive after install).
-## @note Build directory is `${CMAKE_CURRENT_BINARY_DIR}/bm/<id>`
+## @note Build directory is `${BUILDMASTER_BINDIR}/bm/<id>`
 ##       (`_bm_path_component_builddir`). Created with `file(MAKE_DIRECTORY)`.
 ## @note `PRIVATE_HEADERS` is TRUE when `_build_system` is `none`, or when
 ##       `NOINSTALL` is set on a headers id. A source that does install may

@@ -7,7 +7,16 @@ if(NOT BUILDMASTER_CONFIGURED)
 		set(BUILDMASTER_SRCDIR "${CMAKE_CURRENT_LIST_DIR}")
 		set(BUILDMASTER_ROOT "${BUILDMASTER_SRCDIR}")
 	endif()
-	set(BUILDMASTER_BINDIR "${CMAKE_CURRENT_BINARY_DIR}")
+	# Outermost consumer wins. Nested configures receive this via
+	# -DBUILDMASTER_BINDIR so bm/<id> never stacks under a child's -B.
+	if(NOT DEFINED BUILDMASTER_BINDIR OR "${BUILDMASTER_BINDIR}" STREQUAL "")
+		if(DEFINED CACHE{BUILDMASTER_BINDIR}
+				AND NOT "$CACHE{BUILDMASTER_BINDIR}" STREQUAL "")
+			set(BUILDMASTER_BINDIR "$CACHE{BUILDMASTER_BINDIR}")
+		else()
+			set(BUILDMASTER_BINDIR "${CMAKE_CURRENT_BINARY_DIR}")
+		endif()
+	endif()
 	set(BUILDMASTER_SCRIPTSDIR "${BUILDMASTER_BINDIR}/scripts")
 	set(BUILDMASTER_LINKS_DIR "${BUILDMASTER_BINDIR}/links")
 	# ENV paths on Windows often use backslashes; CMake treats \U \t \n etc. as

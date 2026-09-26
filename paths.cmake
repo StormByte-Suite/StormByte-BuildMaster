@@ -95,21 +95,27 @@ endfunction()
 
 ## @brief Canonical per-component build directory.
 ## @param[out] _out Parent-scope path:
-##            `${CMAKE_CURRENT_BINARY_DIR}/bm/<sanitized-id>`.
+##            `${BUILDMASTER_BINDIR}/bm/<sanitized-id>`.
 ## @param[in]  _component Component id.
 ## @note Does not create the directory. `_bm_graph_create` runs
 ##       `file(MAKE_DIRECTORY)` on this path.
+## @note BUILDMASTER_BINDIR is the outermost consumer. Nested
+##       project() must not stack bm/<id> under their own -B.
 function(_bm_path_component_builddir _out _component)
-	_bm_log_message(CORE LOWLEVEL "Entering _bm_path_component_builddir")
-	if(NOT ARGC EQUAL 2)
-		_bm_log_message(CORE FATAL
-			"_bm_path_component_builddir requires output variable and component id")
-	endif()
-	if("${_component}" STREQUAL "")
-		_bm_log_message(CORE FATAL
-			"_bm_path_component_builddir: empty component id")
-	endif()
-	_bm_path_sanitize(_safe "${_component}")
-	set(${_out} "${CMAKE_CURRENT_BINARY_DIR}/bm/${_safe}" PARENT_SCOPE)
-	_bm_log_message(CORE LOWLEVEL "Exiting _bm_path_component_builddir")
+    _bm_log_message(CORE LOWLEVEL "Entering _bm_path_component_builddir")
+    if(NOT ARGC EQUAL 2)
+        _bm_log_message(CORE FATAL
+            "_bm_path_component_builddir requires output variable and component id")
+    endif()
+    if("${_component}" STREQUAL "")
+        _bm_log_message(CORE FATAL
+            "_bm_path_component_builddir: empty component id")
+    endif()
+    if("${BUILDMASTER_BINDIR}" STREQUAL "")
+        _bm_log_message(CORE FATAL
+            "_bm_path_component_builddir: BUILDMASTER_BINDIR is empty")
+    endif()
+    _bm_path_sanitize(_safe "${_component}")
+    set(${_out} "${BUILDMASTER_BINDIR}/bm/${_safe}" PARENT_SCOPE)
+    _bm_log_message(CORE LOWLEVEL "Exiting _bm_path_component_builddir")
 endfunction()

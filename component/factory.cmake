@@ -266,7 +266,7 @@ endfunction()
 ##            `ALIAS={…}` is applied after the INTERFACE stub
 ##            (`_bm_alias_apply`).
 ## @note No build-directory argument. BuildMaster assigns
-##       `${CMAKE_CURRENT_BINARY_DIR}/bm/<id>` via `_bm_path_component_builddir`.
+##       `${BUILDMASTER_BINDIR}/bm/<id>` via `_bm_path_component_builddir`.
 ## @note Both marker files without `BACKEND=`: FATAL.
 ## @note INTERFACE `<id>` exists on return (or already existed).
 ## @note A second `buildmaster_component` with the same `_component` is a

@@ -25,7 +25,7 @@ endfunction()
 ## @param[in] options_string Optional (last argument) "KEY=value;…" string.
 ##            See _bm_graph_create for supported keys.
 ## @note No build-directory argument. `_bm_graph_create` assigns
-##       `${CMAKE_CURRENT_BINARY_DIR}/bm/<id>`.
+##       `${BUILDMASTER_BINDIR}/bm/<id>`.
 function(_bm_backend_cmake_create _component _component_title _srcdir
 		_options _library_mode _produced)
 	_bm_log_message(COMPONENT LOWLEVEL "Entering _bm_backend_cmake_create")
