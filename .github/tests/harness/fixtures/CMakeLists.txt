@@ -47,6 +47,7 @@ add_subdirectory(groups-late)
 # ---------------------------------------------------------------------------
 # Order / link
 # ---------------------------------------------------------------------------
+add_subdirectory(bootstrap-anywhere)
 add_subdirectory(link-component)
 add_subdirectory(order-independent)
 

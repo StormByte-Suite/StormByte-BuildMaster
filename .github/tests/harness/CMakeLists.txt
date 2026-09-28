@@ -82,7 +82,7 @@ add_custom_target(run_buildmaster_checks
 # jobs PATH has LLVM/bin first; a bare cmake -S picks clang.exe
 # (GNU-like) and demand_profile(infer=clang) is FATAL.
 set(_BM_CONSUMER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../consumer")
-set(_BM_CONSUMER_BIN "${CMAKE_CURRENT_BINARY_DIR}/consumer_nested")
+set(_BM_CONSUMER_BIN "${CMAKE_BINARY_DIR}/consumer_nested")
 set(_BM_CONSUMER_EXE "${_BM_CONSUMER_BIN}/lib/consumer_host${CMAKE_EXECUTABLE_SUFFIX}")
 
 add_custom_target(run_buildmaster_consumer
@@ -119,6 +119,7 @@ add_custom_target(run_buildmaster_smoke
 	DEPENDS
 		# Consumer (own source dir / DEFER)
 		run_buildmaster_consumer
+		bootstrap_anywhere_run
 		# Core / flat
 		base_install dep_install first_install link-a_install link-b_install
 		payload-lib_install sdk-headers_install
@@ -237,7 +238,7 @@ add_dependencies(run_buildmaster_smoke run_buildmaster_negative)
 # smoke already DEPENDS consumer_nested (once) and negative.
 # Then a wiped sibling bindir (GHA: build/tests/consumer), never
 # a second cmake -S of consumer_nested.
-set(_BM_CONSUMER_CI_BIN "${CMAKE_CURRENT_BINARY_DIR}/consumer_ci")
+set(_BM_CONSUMER_CI_BIN "${CMAKE_BINARY_DIR}/consumer_ci")
 set(_BM_CONSUMER_CI_EXE
 	"${_BM_CONSUMER_CI_BIN}/lib/consumer_host${CMAKE_EXECUTABLE_SUFFIX}")
 

@@ -13,6 +13,9 @@
 <lib>/bepick.lib|windows
 <lib>/libbepick.a|unix
 
+# bootstrap-anywhere
+# no prefix artifacts (installs under bootstrap_anywhere/bm_abs/install)
+
 # dep
 <include>/dep.h|all
 <lib>/deplib.lib|windows

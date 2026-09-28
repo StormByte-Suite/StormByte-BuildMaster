@@ -8,6 +8,9 @@ base_install
 # backend-pick
 be-pick_install
 
+# bootstrap-anywhere
+bootstrap_anywhere_run
+
 # dep
 dep_install
 

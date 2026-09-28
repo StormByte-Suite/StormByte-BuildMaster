@@ -9,6 +9,9 @@ base -> base_install
 # backend-pick
 be-pick -> be-pick_install
 
+# bootstrap-anywhere
+# isolated cmake -S; no edges in the harness graph
+
 # dep
 dep -> dep_install
 dep_configure -> base_install
