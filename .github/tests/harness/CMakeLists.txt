@@ -171,6 +171,8 @@ add_custom_target(run_buildmaster_smoke
 		links_chain_test links_chain_test_run
 		SharedBuffer_install
 		links_shared_chain_test links_shared_chain_test_run
+		sl-db_install sl-pq_install
+		links_static_closure_test links_static_closure_test_run
 		TransUpper_install TransLeaf_install
 		links_transitive_test links_transitive_test_run
 		RaceA_install RaceB_install

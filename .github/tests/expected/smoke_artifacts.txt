@@ -162,6 +162,14 @@ bin/bm_rescan_exe.exe|windows
 <include>/trans_mid.h|all
 <include>/trans_upper.h|all
 
+# links-static-closure
+<include>/db.h|all
+<include>/pq.h|all
+<lib>/libsl_db.a|unix
+<lib>/libsl_pq.a|unix
+<lib>/sl_db.lib|windows
+<lib>/sl_pq.lib|windows
+
 # link-component
 <include>/a.h|all
 <include>/b.h|all

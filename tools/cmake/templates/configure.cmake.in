@@ -17,119 +17,125 @@ _bm_stamp_enter(
 	"@_BM_STAMP_HOLDERS@"
 	"@_BM_STAMP_ENV@")
 if(NOT BM_STAMP_SKIP)
+	# Cache alone is not enough: an interrupted first run leaves CMakeCache.txt
+	# (and CMakeScratch) without build.ninja. The next parent configure used
+	# to skip this block; Ninja then died with "loading build.ninja".
+	if(NOT EXISTS "@_CMAKE_BUILD_DIR@/CMakeCache.txt"
+			OR NOT EXISTS "@_CMAKE_BUILD_DIR@/build.ninja")
+		if(NOT "@_BM_CONFIGURE_VIA_TARGET@" STREQUAL "1")
+			_bm_log_message(CMAKE STATUS
+				"Configuring @_CMAKE_COMPONENT_TITLE@@_CMAKE_TOOLCHAIN_SUFFIX@"
+				"@_CMAKE_INDENT_LEVEL@")
+		endif()
 
-# Cache alone is not enough: an interrupted first run leaves CMakeCache.txt
-# (and CMakeScratch) without build.ninja. The next parent configure used
-# to skip this block; Ninja then died with "loading build.ninja".
-if(NOT EXISTS "@_CMAKE_BUILD_DIR@/CMakeCache.txt"
-		OR NOT EXISTS "@_CMAKE_BUILD_DIR@/build.ninja")
-	if(NOT "@_BM_CONFIGURE_VIA_TARGET@" STREQUAL "1")
-		_bm_log_message(CMAKE STATUS
-			"Configuring @_CMAKE_COMPONENT_TITLE@@_CMAKE_TOOLCHAIN_SUFFIX@"
-			"@_CMAKE_INDENT_LEVEL@")
-	endif()
+		string(REGEX REPLACE "[^A-Za-z0-9_.-]" "_" _bm_links_safe "@_CMAKE_COMPONENT@")
+		if(NOT "@BUILDMASTER_LINKS_DIR@" STREQUAL "")
+			file(REMOVE
+				"@BUILDMASTER_LINKS_DIR@/${_bm_links_safe}.cmake"
+				"@BUILDMASTER_LINKS_DIR@/${_bm_links_safe}_static.txt")
+		endif()
 
-	# Prefix is ENV_CMAKE_*: runner tokens + cmake binary.
-	set(_bm_runner @_CMAKE_CFG_CMD_PREFIX@)
-	list(LENGTH _bm_runner _bm_n)
-	if(_bm_n LESS 1)
-		_bm_log_message(CMAKE FATAL "ENV_CMAKE command prefix is empty")
-	endif()
-	math(EXPR _bm_last "${_bm_n} - 1")
-	list(GET _bm_runner ${_bm_last} _bm_cmake_exe)
-	list(REMOVE_AT _bm_runner ${_bm_last})
+		# Prefix is ENV_CMAKE_*: runner tokens + cmake binary.
+		set(_bm_runner @_CMAKE_CFG_CMD_PREFIX@)
+		list(LENGTH _bm_runner _bm_n)
+		if(_bm_n LESS 1)
+			_bm_log_message(CMAKE FATAL "ENV_CMAKE command prefix is empty")
+		endif()
+		math(EXPR _bm_last "${_bm_n} - 1")
+		list(GET _bm_runner ${_bm_last} _bm_cmake_exe)
+		list(REMOVE_AT _bm_runner ${_bm_last})
 
-	set(_bm_cfg_cmd
-		"${_bm_cmake_exe}"
-		-Wno-dev
-		-S "@_CMAKE_SRCDIR@"
-		-B "@_CMAKE_BUILD_DIR@"
-		-G Ninja
-	)
-	if("@_CMAKE_USE_TOOLCHAIN_FILE@" STREQUAL "1")
-		list(APPEND _bm_cfg_cmd "-DCMAKE_TOOLCHAIN_FILE=@BUILDMASTER_TOOLCHAIN_FILE@")
-	endif()
-	list(APPEND _bm_cfg_cmd
-		"-DCMAKE_BUILD_TYPE=@CMAKE_BUILD_TYPE@"
-		"-DBUILD_SHARED_LIBS=@_CMAKE_SHARED_MODE@"
-		"-DCMAKE_INSTALL_PREFIX=@BUILDMASTER_INSTALL_DIR@"
-		"-DBUILDMASTER_BINDIR=@BUILDMASTER_BINDIR@"
-		"-DBUILDMASTER_INSTALL_DIR=@BUILDMASTER_INSTALL_DIR@"
-		"-DCMAKE_C_COMPILER=@CMAKE_C_COMPILER@"
-		"-DCMAKE_CXX_COMPILER=@CMAKE_CXX_COMPILER@"
-		"-DCMAKE_C_FLAGS=@CMAKE_C_FLAGS@"
-		"-DCMAKE_CXX_FLAGS=@CMAKE_CXX_FLAGS@"
-		"-DCMAKE_EXE_LINKER_FLAGS=@CMAKE_EXE_LINKER_FLAGS@"
-		"-DCMAKE_SHARED_LINKER_FLAGS=@CMAKE_SHARED_LINKER_FLAGS@"
-		"-DCMAKE_MODULE_LINKER_FLAGS=@CMAKE_MODULE_LINKER_FLAGS@"
-		"-DCMAKE_LINKER_TYPE=@CMAKE_LINKER_TYPE@"
-		"-DCMAKE_LINKER=@CMAKE_LINKER@"
-		"-DCMAKE_C_COMPILER_LINKER=@CMAKE_C_COMPILER_LINKER@"
-		"-DCMAKE_CXX_COMPILER_LINKER=@CMAKE_CXX_COMPILER_LINKER@"
-		"-DCMAKE_AR=@CMAKE_AR@"
-		"-DCMAKE_C_COMPILER_AR=@CMAKE_C_COMPILER_AR@"
-		"-DCMAKE_CXX_COMPILER_AR=@CMAKE_CXX_COMPILER_AR@"
-		"-DCMAKE_RANLIB=@CMAKE_RANLIB@"
-		"-DCMAKE_C_COMPILER_RANLIB=@CMAKE_C_COMPILER_RANLIB@"
-		"-DCMAKE_CXX_COMPILER_RANLIB=@CMAKE_CXX_COMPILER_RANLIB@"
-		"-DCMAKE_NM=@CMAKE_NM@"
-		"-DCMAKE_MT=@CMAKE_MT@"
-		"-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
-		"-DCMAKE_POLICY_DEFAULT_CMP0141=NEW"
-		"-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded"
-		"-DCMAKE_C_COMPILER_LAUNCHER=@CMAKE_C_COMPILER_LAUNCHER@"
-		"-DCMAKE_CXX_COMPILER_LAUNCHER=@CMAKE_CXX_COMPILER_LAUNCHER@"
-	)
-	if("@BM_TC_IPO_ON@" STREQUAL "TRUE" OR "@BM_TC_IPO_ON@" STREQUAL "ON")
+		set(_bm_cfg_cmd
+			"${_bm_cmake_exe}"
+			-Wno-dev
+			-S "@_CMAKE_SRCDIR@"
+			-B "@_CMAKE_BUILD_DIR@"
+			-G Ninja
+		)
+		if("@_CMAKE_USE_TOOLCHAIN_FILE@" STREQUAL "1")
+			list(APPEND _bm_cfg_cmd "-DCMAKE_TOOLCHAIN_FILE=@BUILDMASTER_TOOLCHAIN_FILE@")
+		endif()
 		list(APPEND _bm_cfg_cmd
-			"-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
-			"-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=ON"
+			"-DCMAKE_BUILD_TYPE=@CMAKE_BUILD_TYPE@"
+			"-DBUILD_SHARED_LIBS=@_CMAKE_SHARED_MODE@"
+			"-DCMAKE_INSTALL_PREFIX=@BUILDMASTER_INSTALL_DIR@"
+			"-DBUILDMASTER_BINDIR=@BUILDMASTER_BINDIR@"
+			"-DBUILDMASTER_INSTALL_DIR=@BUILDMASTER_INSTALL_DIR@"
+			"-DCMAKE_C_COMPILER=@CMAKE_C_COMPILER@"
+			"-DCMAKE_CXX_COMPILER=@CMAKE_CXX_COMPILER@"
+			"-DCMAKE_C_FLAGS=@CMAKE_C_FLAGS@"
+			"-DCMAKE_CXX_FLAGS=@CMAKE_CXX_FLAGS@"
+			"-DCMAKE_EXE_LINKER_FLAGS=@CMAKE_EXE_LINKER_FLAGS@"
+			"-DCMAKE_SHARED_LINKER_FLAGS=@CMAKE_SHARED_LINKER_FLAGS@"
+			"-DCMAKE_MODULE_LINKER_FLAGS=@CMAKE_MODULE_LINKER_FLAGS@"
+			"-DCMAKE_LINKER_TYPE=@CMAKE_LINKER_TYPE@"
+			"-DCMAKE_LINKER=@CMAKE_LINKER@"
+			"-DCMAKE_C_COMPILER_LINKER=@CMAKE_C_COMPILER_LINKER@"
+			"-DCMAKE_CXX_COMPILER_LINKER=@CMAKE_CXX_COMPILER_LINKER@"
+			"-DCMAKE_AR=@CMAKE_AR@"
+			"-DCMAKE_C_COMPILER_AR=@CMAKE_C_COMPILER_AR@"
+			"-DCMAKE_CXX_COMPILER_AR=@CMAKE_CXX_COMPILER_AR@"
+			"-DCMAKE_RANLIB=@CMAKE_RANLIB@"
+			"-DCMAKE_C_COMPILER_RANLIB=@CMAKE_C_COMPILER_RANLIB@"
+			"-DCMAKE_CXX_COMPILER_RANLIB=@CMAKE_CXX_COMPILER_RANLIB@"
+			"-DCMAKE_NM=@CMAKE_NM@"
+			"-DCMAKE_MT=@CMAKE_MT@"
+			"-DCMAKE_POSITION_INDEPENDENT_CODE=ON"
+			"-DCMAKE_POLICY_DEFAULT_CMP0141=NEW"
+			"-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded"
+			"-DCMAKE_C_COMPILER_LAUNCHER=@CMAKE_C_COMPILER_LAUNCHER@"
+			"-DCMAKE_CXX_COMPILER_LAUNCHER=@CMAKE_CXX_COMPILER_LAUNCHER@"
 		)
-	elseif("@BM_TC_IPO_ON@" STREQUAL "FALSE" OR "@BM_TC_IPO_ON@" STREQUAL "OFF")
+		if("@BM_TC_IPO_ON@" STREQUAL "TRUE" OR "@BM_TC_IPO_ON@" STREQUAL "ON")
+			list(APPEND _bm_cfg_cmd
+				"-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
+				"-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=ON"
+			)
+		elseif("@BM_TC_IPO_ON@" STREQUAL "FALSE" OR "@BM_TC_IPO_ON@" STREQUAL "OFF")
+			list(APPEND _bm_cfg_cmd
+				"-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF"
+				"-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=OFF"
+			)
+		endif()
+		if(NOT "@BM_TC_IPO_COMPILE_OPTIONS@" STREQUAL "")
+			list(APPEND _bm_cfg_cmd
+				"-DCMAKE_C_COMPILE_OPTIONS_IPO=@BM_TC_IPO_COMPILE_OPTIONS@"
+				"-DCMAKE_CXX_COMPILE_OPTIONS_IPO=@BM_TC_IPO_COMPILE_OPTIONS@"
+			)
+		endif()
+		if(NOT "@BM_TC_LINK_GROUP_START@" STREQUAL "")
+			list(APPEND _bm_cfg_cmd
+				"-DCMAKE_C_LINK_EXECUTABLE=<CMAKE_C_COMPILER> <FLAGS> <CMAKE_C_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> @BM_TC_LINK_GROUP_START@ <LINK_LIBRARIES> @BM_TC_LINK_GROUP_END@"
+				"-DCMAKE_CXX_LINK_EXECUTABLE=<CMAKE_CXX_COMPILER> <FLAGS> <CMAKE_CXX_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> @BM_TC_LINK_GROUP_START@ <LINK_LIBRARIES> @BM_TC_LINK_GROUP_END@"
+			)
+		endif()
 		list(APPEND _bm_cfg_cmd
-			"-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF"
-			"-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=OFF"
+			@_CMAKE_OPTIONS@
 		)
-	endif()
-	if(NOT "@BM_TC_IPO_COMPILE_OPTIONS@" STREQUAL "")
-		list(APPEND _bm_cfg_cmd
-			"-DCMAKE_C_COMPILE_OPTIONS_IPO=@BM_TC_IPO_COMPILE_OPTIONS@"
-			"-DCMAKE_CXX_COMPILE_OPTIONS_IPO=@BM_TC_IPO_COMPILE_OPTIONS@"
-		)
-	endif()
-	if(NOT "@BM_TC_LINK_GROUP_START@" STREQUAL "")
-		list(APPEND _bm_cfg_cmd
-			"-DCMAKE_C_LINK_EXECUTABLE=<CMAKE_C_COMPILER> <FLAGS> <CMAKE_C_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> @BM_TC_LINK_GROUP_START@ <LINK_LIBRARIES> @BM_TC_LINK_GROUP_END@"
-			"-DCMAKE_CXX_LINK_EXECUTABLE=<CMAKE_CXX_COMPILER> <FLAGS> <CMAKE_CXX_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> @BM_TC_LINK_GROUP_START@ <LINK_LIBRARIES> @BM_TC_LINK_GROUP_END@"
-		)
-	endif()
-	list(APPEND _bm_cfg_cmd
-		@_CMAKE_OPTIONS@
-	)
 
-	if(WIN32)
-		set(_bm_argfile "@_CMAKE_BUILD_DIR@/.bm_configure_argv.txt")
-		file(WRITE "${_bm_argfile}" "")
-		foreach(_bm_tok IN LISTS _bm_cfg_cmd)
-			file(APPEND "${_bm_argfile}" "${_bm_tok}\n")
-		endforeach()
-		execute_process(
-			COMMAND ${_bm_runner} --argfile "${_bm_argfile}"
-			WORKING_DIRECTORY "@_CMAKE_BUILD_DIR@"
-			RESULT_VARIABLE CMAKE_RESULT
-		)
-	else()
-		execute_process(
-			COMMAND ${_bm_runner} ${_bm_cfg_cmd}
-			WORKING_DIRECTORY "@_CMAKE_BUILD_DIR@"
-			RESULT_VARIABLE CMAKE_RESULT
-		)
-	endif()
+		if(WIN32)
+			set(_bm_argfile "@_CMAKE_BUILD_DIR@/.bm_configure_argv.txt")
+			file(WRITE "${_bm_argfile}" "")
+			foreach(_bm_tok IN LISTS _bm_cfg_cmd)
+				file(APPEND "${_bm_argfile}" "${_bm_tok}\n")
+			endforeach()
+			execute_process(
+				COMMAND ${_bm_runner} --argfile "${_bm_argfile}"
+				WORKING_DIRECTORY "@_CMAKE_BUILD_DIR@"
+				RESULT_VARIABLE CMAKE_RESULT
+			)
+		else()
+			execute_process(
+				COMMAND ${_bm_runner} ${_bm_cfg_cmd}
+				WORKING_DIRECTORY "@_CMAKE_BUILD_DIR@"
+				RESULT_VARIABLE CMAKE_RESULT
+			)
+		endif()
 
-	if(NOT CMAKE_RESULT EQUAL 0)
-		_bm_log_message(CMAKE FATAL
-			"CMake configure failed for @_CMAKE_COMPONENT_TITLE@ (exit ${CMAKE_RESULT}). Working directory: @_CMAKE_BUILD_DIR@. Nested output was already written by the env runner.")
+		if(NOT CMAKE_RESULT EQUAL 0)
+			_bm_log_message(CMAKE FATAL
+				"CMake configure failed for @_CMAKE_COMPONENT_TITLE@ (exit ${CMAKE_RESULT}). Working directory: @_CMAKE_BUILD_DIR@. Nested output was already written by the env runner.")
+		endif()
 	endif()
-endif()
 	_bm_stamp_leave(0)
 endif()

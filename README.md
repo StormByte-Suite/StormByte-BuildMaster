@@ -55,6 +55,7 @@ BuildMaster is that layer, written once:
 | `--whole-archive` soup in the parent | `WHOLE` on a component or a **meta** |
 | `LNK2005` / duplicate `.res` after `/WHOLEARCHIVE` | `STRIPRES` on static MSVC / clang-cl archives (default on) |
 | `shlwapi` on every consumer because a static `.lib` does not record it | `LINK={…}` on the producer (or the meta) |
+| `undefined pq` after linking `Database.a` — and the urge to `REPACK` the world | `links/<id>_static.txt` (see [Static archives](#static-archives-and-the-sidecar)) |
 | `/FORCE:MULTIPLE` on the **parent** because one leaf needed it | `LINKFLAGS={…}` on **that** leaf (not inherited) |
 | Parent `-flto` / `/GL` leaking into a leaf that cannot probe under LTO | `IPO=off` on that leaf (or `IPO=fat` when you still need real objects) |
 | Hand-written `.pc` so the next Meson node finds this prefix | `PC={…}` on the leaf |
@@ -81,6 +82,7 @@ a product, not a build blog.
 - [Dependencies and links](#dependencies-and-links)
 - [Aliases (`ALIAS`)](#aliases-alias)
 - [Exported links (`links/`)](#exported-links-links)
+- [Static archives and the sidecar](#static-archives-and-the-sidecar)
 - [Raw system libraries (`LINK`)](#raw-system-libraries-link)
 - [Raw linker flags (`LINKFLAGS`)](#raw-linker-flags-linkflags)
 - [Meta components](#meta-components)
@@ -357,12 +359,18 @@ Every materialized component and every created meta writes one file:
 ${BUILDMASTER_LINKS_DIR}/<sanitized-id>.cmake
 ```
 
+and always a sidecar next to it:
+
+```text
+${BUILDMASTER_LINKS_DIR}/<sanitized-id>_static.txt
+```
+
 `BUILDMASTER_LINKS_DIR` sits next to `scripts/` under the **trunk**
 bindir. It is propagated and dumped into the toolchain file, so a
 nested cmake — another process, another repo — still sees the same
 directory. There is one BuildMaster. There is one `links/`.
 
-The file is generated from a template (same idea as the git / cmake
+The `.cmake` is generated from a template (same idea as the git / cmake
 stage scripts). It carries:
 
 - the id and its `ALIAS=` names
@@ -371,7 +379,12 @@ stage scripts). It carries:
   have no Ninja rule in a parent that never registered the leaf)
 - BM dests recorded with `buildmaster_link`
 
-A later tree `include()`s those files and can write:
+The `_static.txt` is **data**, not a script. Ingest still globs
+`*.cmake` only. Flatten `file(READ)`s the sidecar. Shared / headers /
+executable write `set(_BM_STATIC_LINK "")`. Static writes the union of
+that id’s `LINK=` tokens and its `buildmaster_link` dest ids.
+
+A later tree `include()`s those `.cmake` files and can write:
 
 ```cmake
 buildmaster_component(
@@ -389,21 +402,26 @@ buildmaster_link(myapp_plugin freetype)
 If freetype, harfbuzz and libpng were all declared with
 `buildmaster_component` (or a meta) in the tree that built them, the
 plugin does not list harfbuzz and libpng. The `links/freetype.cmake`
-file already knows.
+file already knows. If those ids were **static**, the sidecar is why
+the final exe still sees `libpng.a` and `m` without you naming them.
 
 Rules that keep this honest:
 
-- Only BM nodes go into `links/`. A raw `target_link_libraries` inside
-  a nested `CMakeLists.txt` is invisible. If the nested project is
-  itself a BM graph, use `buildmaster_link` there too.
+- Only BM nodes go into `links/*.cmake`. A raw `target_link_libraries`
+  inside a nested `CMakeLists.txt` is invisible. If the nested project
+  is itself a BM graph, use `buildmaster_link` there too.
 - Same id declared again is first-wins. Configure prints
   `Skipping configure of <title> — already registered as…` or
   `already built by…` and does not compile it twice. Reuse is valid
   only if after `include()` the TARGET `<id>` exists. Version
   comparison is a 2.1 problem.
 - `buildmaster_clean` deletes `links/` with the rest of the bindir.
-- System libs (`shlwapi`, `m`) stay on `LINK=` / `buildmaster_link`
-  as raw names. They ride along on the INTERFACE; they are not BM ids.
+- System libs (`shlwapi`, `m`, `-framework CoreFoundation`) stay on
+  `LINK=`. They are not BM ids. Bundled `pq` is a BM id:
+  `buildmaster_link(Database PostgreSQL)`, never `-lpq` by hand.
+- An effective nested reconfigure (stamp miss **and** a real `cmake -S`)
+  deletes `<id>.cmake` and `<id>_static.txt` before rewrite. A stamp
+  or reuse skip leaves both files.
 
 Use BM for the whole chain and the parent stays one line. Mix a
 hand-rolled leaf in the middle and you are back to writing dests
@@ -411,13 +429,62 @@ yourself — that is fair.
 
 ---
 
+## Static archives and the sidecar
+
+A `.so` / `.dylib` / `.dll` **absorbs** what it linked `PRIVATE`.
+The test that links `libStormByte-Database.so` does not need `-lpq`.
+
+A `.a` / `.lib` absorbs **nothing**. The same test that links
+`libStormByte-Database.a` dies with `undefined PQconnectdb` unless
+`pq` is on *that* line. That is not a BM bug. That is how archives
+work. The usual panic is `REPACK` — glue postgres into Database so
+the consumer only sees one file. Do not. `REPACK` is for
+`NOINSTALL` members you never wanted on the prefix. Postgres is a
+real component. It stays a real `.a`.
+
+`write_one` always emits `links/<id>_static.txt`:
+
+```text
+# Auto-generated by BuildMaster — do not edit
+set(_BM_STATIC_LINK "PostgreSQL;m")
+```
+
+Empty list when the id is shared (or has nothing PRIVATE). Flatten,
+when it walks a dest, reads that file if it exists:
+
+1. Token that has `links/<token>.cmake` → walk that dest (`-L` from
+   its `LIBDIR`, `-l` / `.lib` from its `LIBNAMES`). Bundled `pq`
+   wins over the system one because the prefix `-L` is first.
+2. Token with no dest file (`m`, `ws2_32`, `-framework CoreFoundation`)
+   → emit as-is. Darwin frameworks stay one token, not `-lCoreFoundation`.
+
+The consumer still writes one line:
+
+```cmake
+target_link_libraries(tests PRIVATE StormByte-Database)
+```
+
+Shared Database: sidecar empty, tests see the DSO. Static Database:
+sidecar lists `PostgreSQL` (and `m` if you put it on `LINK=`), tests
+get `-L<prefix> -lpq` without naming postgres and without `REPACK`.
+
+Do not `include()` the `.txt`. Do not put `ADD` or
+`target_link_libraries` in it.
+
+---
+
 ## Raw system libraries (`LINK`)
 
-`LINK=` / `LINK={…}` are raw linker **names** (`shlwapi`, `ws2_32`, `m`).
-They go on that id’s `INTERFACE` and propagate to whoever links it.
+`LINK=` / `LINK={…}` are raw linker **names** (`shlwapi`, `ws2_32`, `m`,
+`-framework CoreFoundation`). On a **shared** id they go on that id’s
+`INTERFACE`. On a **static** id they also land in `_static.txt` so a
+later flatten still sees them when the IMPORTED `.a` forgot.
 
 They are **not** graph nodes. A BM component belongs in
-`buildmaster_link`, not in `LINK=`.
+`buildmaster_link`, not in `LINK=`. Bundled vs system is the dest
+file: `buildmaster_link(Database PostgreSQL)` writes the id
+`PostgreSQL`. Flatten uses that id’s `-L`. `-lpq` in `LINK=` is the
+system library and you will lose the fight on a machine that has both.
 
 ---
 
@@ -512,9 +579,9 @@ KEY=value;KEY2=value with spaces;PC={VERSION=1.2.3;NAME=foo}
 | `BACKEND` | detect | `cmake` or `meson` when both markers exist |
 | `SOURCE` | (srcdir) | Subtree under the positional `srcdir`. Applied **before** detect |
 | `ALIAS=` / `ALIAS={…}` | empty | `add_library(alias ALIAS id)` after the stub |
-| `REPACK` | OFF | Meta, or a **static** component: merge NOINSTALL static dests into the prefix archive |
+| `REPACK` | OFF | Meta, or a **static** component: merge NOINSTALL static dests into the prefix archive. Not a substitute for `_static.txt` |
 | `PC={…}` | off | Write a helper `.pc` after install. Does **not** demand pkg-config. FATAL on `executable` |
-| `LINK=` / `LINK={…}` | empty | Raw system linker names on the INTERFACE |
+| `LINK=` / `LINK={…}` | empty | Raw system linker names. Static ids also copy them into `_static.txt` |
 | `LINKFLAGS=` / `LINKFLAGS={…}` | empty | Raw flags for the nested link only |
 | `GIT={…}` | empty | Fetch / switch / reset / patch. `ROOT=` uses the same isolation as `SOURCE=` |
 | `FILES={…}` | empty | Download / unpack / optional inner `SOURCE` tree (not the optstr) |
@@ -597,11 +664,13 @@ prefix archive named after the meta id. Shared members stay INTERFACE
 
 `REPACK` on a **static** `buildmaster_component` merges first-level
 `depend`/`link` dests that are NOINSTALL static into that component’s
-already-installed prefix archive. Headers / executable + `REPACK` on
-the same id is FATAL. An `executable` dest of a REPACK publisher is
-skipped (INFO), not a member. Shared + `REPACK` on a component is
-WARNING + skip. Zero static members is FATAL. `REPACK` + `NOINSTALL`
-on the same id is FATAL.
+already-installed prefix archive. It is **not** how you propagate
+`pq` / CoreFoundation / `m` to a test that links `Database.a`. That
+is the sidecar. Headers / executable + `REPACK` on the same id is
+FATAL. An `executable` dest of a REPACK publisher is skipped (INFO),
+not a member. Shared + `REPACK` on a component is WARNING + skip.
+Zero static members is FATAL. `REPACK` + `NOINSTALL` on the same id
+is FATAL.
 
 `BUILDONLY` is gone. Write `NOINSTALL`.
 
@@ -929,6 +998,7 @@ bug is not a feature.
 | Order-independent declare | no | no | yes |
 | Extra host tools | hope PATH | hope PATH | `REQUIRE_TOOL` |
 | Transitive BM deps across processes | no | no | `links/` |
+| Static PRIVATE closure (`pq` on the test line) | DIY / `REPACK` | DIY | `links/<id>_static.txt` |
 
 ---
 

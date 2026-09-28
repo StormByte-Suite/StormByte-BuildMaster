@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.20)
+project(sl_pq C)
+include(GNUInstallDirs)
+add_library(sl_pq STATIC pq.c)
+target_include_directories(sl_pq PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+install(TARGETS sl_pq ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(FILES pq.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

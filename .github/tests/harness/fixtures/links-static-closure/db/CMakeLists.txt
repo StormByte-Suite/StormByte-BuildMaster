@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.20)
+project(sl_db C)
+include(GNUInstallDirs)
+add_library(sl_db STATIC db.c)
+target_include_directories(sl_db PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(sl_db PRIVATE sl_pq)
+install(TARGETS sl_db ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(FILES db.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

@@ -97,6 +97,12 @@ RaceB_install
 links_race_test
 links_race_test_run
 
+# links-static-closure
+sl-db_install
+sl-pq_install
+links_static_closure_test
+links_static_closure_test_run
+
 # link-component
 link-a_install
 link-b_install

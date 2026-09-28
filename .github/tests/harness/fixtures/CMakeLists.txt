@@ -75,6 +75,7 @@ add_subdirectory(links-chain)
 add_subdirectory(links-shared-chain)
 add_subdirectory(links-transitive)
 add_subdirectory(links-race)
+add_subdirectory(links-static-closure)
 
 # ---------------------------------------------------------------------------
 # Install archive rename (Meson zs.* → produced z.*)
