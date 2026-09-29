@@ -41,6 +41,14 @@ function(_hn_no_self_skip _label _out)
 	endif()
 endfunction()
 
+## @brief FATAL if an unchanged build re-ran CMake (parent or nested).
+function(_hn_no_rerun _label _out)
+	if("${_out}" MATCHES "Re-running CMake")
+		message(FATAL_ERROR
+			"host-nested-reconfigure: ${_label} re-ran CMake without changes\n${_out}")
+	endif()
+endfunction()
+
 ## @brief FATAL unless the nested host objects wait on Logger/System install.
 function(_hn_nested_edges _label)
 	file(STRINGS "${_nested}/build.ninja" _lines
@@ -62,11 +70,13 @@ _hn_run("configure" _out
 	"-DHN_BM_ROOT=${HN_BM_ROOT}")
 _hn_run("build 1" _out "${CMAKE_COMMAND}" --build "${_bld}")
 _hn_no_self_skip("build 1" "${_out}")
+_hn_no_rerun("build 1" "${_out}")
 _hn_nested_edges("build 1")
 
 # 2. Second build without changes.
 _hn_run("build 2" _out "${CMAKE_COMMAND}" --build "${_bld}")
 _hn_no_self_skip("build 2" "${_out}")
+_hn_no_rerun("build 2" "${_out}")
 
 # 3. Force a nested reconfigure: GLOB mismatch + newer links files.
 file(WRITE "${_src}/buffer/src/extra.c" "int hn_buffer_extra(void) { return 0; }\n")

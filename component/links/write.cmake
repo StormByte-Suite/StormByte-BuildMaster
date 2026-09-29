@@ -107,6 +107,11 @@ endfunction()
 ## @note Always writes `links/<id>_static.txt`. Static fills
 ##       `_BM_STATIC_LINK` with `LINK=` plus `buildmaster_link` dests.
 ##       Shared / headers / executable write an empty list.
+## @note `_BM_LINKS_WRITER` is the writer's `CMAKE_BINARY_DIR`. A cmake
+##       component whose file was written from its own BUILDDIR (the nested
+##       BM project declared the same id) keeps that file untouched unless
+##       this process adds dests. Rewriting it re-ran CMake in the nested
+##       build on every parent configure.
 function(_bm_links_write_one _id)
 	_bm_log_message(COMPONENT LOWLEVEL "Entering _bm_links_write_one")
 	if("${_id}" STREQUAL "")
@@ -234,6 +239,35 @@ function(_bm_links_write_one _id)
 
 	_bm_path_sanitize(_safe "${_id}")
 	set(_out "${BUILDMASTER_LINKS_DIR}/${_safe}.cmake")
+	_bm_path_normalize(BM_LINKS_WRITER "${CMAKE_BINARY_DIR}")
+
+	# The nested configure of this same id (bm/<id>) already wrote the
+	# file. Rewriting it dirties that nested build.ninja (include() dep).
+	get_property(_sys GLOBAL PROPERTY BUILDMASTER_COMPONENT_${_id}_SYSTEM)
+	if(_is_c AND _sys STREQUAL "cmake" AND NOT "${_bd}" STREQUAL ""
+			AND EXISTS "${_out}")
+		file(READ "${_out}" _txt)
+		set(_writer "")
+		if("${_txt}" MATCHES "set\\(_BM_LINKS_WRITER \"([^\"]*)\"\\)")
+			set(_writer "${CMAKE_MATCH_1}")
+		endif()
+		_bm_path_normalize(_bd_norm "${_bd}")
+		if(NOT "${_writer}" STREQUAL "" AND "${_writer}" STREQUAL "${_bd_norm}")
+			set(_extra_dests "")
+			foreach(_d IN LISTS BM_LINKS_DESTS)
+				if(NOT "${_d}" IN_LIST _from_file)
+					list(APPEND _extra_dests "${_d}")
+				endif()
+			endforeach()
+			if(NOT _extra_dests)
+				_bm_log_message(COMPONENT DEBUG
+					"Kept links ${_id} written by its nested configure (${_writer})")
+				_bm_log_message(COMPONENT LOWLEVEL "Exiting _bm_links_write_one")
+				return()
+			endif()
+		endif()
+	endif()
+
 	configure_file(
 		"${BUILDMASTER_COMPONENT_SRCDIR}/links/templates/link.cmake.in"
 		"${_out}"

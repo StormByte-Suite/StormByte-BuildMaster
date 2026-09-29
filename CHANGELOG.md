@@ -48,6 +48,7 @@ If you landed here from a release link and have not read the tree:
 
 ### Fixed
 - **A reconfigure no longer skips the ids its own build dir published.** When ninja re-ran CMake inside a nested project (a `CONFIGURE_DEPENDS` glob mismatch, or a `links/*.cmake` rewritten by the parent), `buildmaster_component` treated the leftover `links/<id>.cmake` of every dependency that same project had configured as "already built by" another process. Their `<id>_build` / `<id>_install` stages vanished from the nested graph and a `BACKEND=host` library compiled before its dependencies were installed (missing headers). A top-level `cmake <builddir>` hit the same skip. Each build dir now records the ids it published in `bm-owned-links.txt`, and a reconfigure configures those again. Fixture `host-nested-reconfigure` drives configure → build → build → forced nested reconfigure → top-level reconfigure.
+- **A parent no longer rewrites the links file its nested project wrote for the same id.** When a `cmake` component's nested BuildMaster project declares that same id (for example with `BACKEND=host`), both processes wrote `links/<id>.cmake` with different content. The parent rewrite made the nested `build.ninja` stale, and the next build re-ran CMake in the nested project and then in the parent. Links files now record their writer's binary dir (`_BM_LINKS_WRITER`); the parent keeps a file written from the component's own build dir unless it adds dests.
 
 [2.0.2]: https://github.com/StormBytePP/StormByte-BuildMaster/compare/2.0.1...2.0.2
 
