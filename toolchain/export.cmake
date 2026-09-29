@@ -16,6 +16,9 @@ endfunction()
 ## @param[in] value Raw value; backslashes become `/`, quotes are escaped.
 ## @note Used for the host dump (`BUILDMASTER_TOOLCHAIN_FILE`). Component
 ##       overlays are written later by `_bm_tc_write_component`.
+## @note `;` is escaped in the line list, so a list value stays one
+##       `set()` line. Unescaped, `_bm_tc_write` split it into one line per
+##       item and the nested cache warned "contained a newline".
 function(_bm_tc_export name value)
 	_bm_log_message(TOOLCHAIN LOWLEVEL "Entering _bm_tc_export")
 	if("${name}" STREQUAL "")
@@ -23,6 +26,7 @@ function(_bm_tc_export name value)
 	endif()
 	string(REPLACE "\\" "/" _bm_tc_val "${value}")
 	string(REPLACE "\"" "\\\"" _bm_tc_val "${_bm_tc_val}")
+	string(REPLACE ";" "\\;" _bm_tc_val "${_bm_tc_val}")
 	set_property(GLOBAL APPEND PROPERTY BUILDMASTER_TOOLCHAIN_LINES
 		"set(${name} \"${_bm_tc_val}\")")
 	_bm_log_message(TOOLCHAIN LOWLEVEL "Exiting _bm_tc_export")
@@ -37,7 +41,8 @@ function(_bm_tc_export_raw line)
 		_bm_log_message(TOOLCHAIN LOWLEVEL "Exiting _bm_tc_export_raw")
 		return()
 	endif()
-	set_property(GLOBAL APPEND PROPERTY BUILDMASTER_TOOLCHAIN_LINES "${line}")
+	string(REPLACE ";" "\\;" _bm_tc_line "${line}")
+	set_property(GLOBAL APPEND PROPERTY BUILDMASTER_TOOLCHAIN_LINES "${_bm_tc_line}")
 	_bm_log_message(TOOLCHAIN LOWLEVEL "Exiting _bm_tc_export_raw")
 endfunction()
 

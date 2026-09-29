@@ -84,6 +84,11 @@ file(GLOB _links "${_bld}/buildmaster/links/*.cmake")
 file(TOUCH ${_links})
 _hn_run("build 3" _out "${CMAKE_COMMAND}" --build "${_bld}")
 _hn_no_self_skip("build 3" "${_out}")
+file(STRINGS "${_nested}/CMakeCache.txt" _nl REGEX "contained a newline")
+if(_nl)
+	message(FATAL_ERROR
+		"host-nested-reconfigure: build 3: toolchain dump split a list value\n${_nl}")
+endif()
 _hn_nested_edges("build 3")
 if(NOT EXISTS "${_nested}/CMakeFiles/hn-buffer.dir/src/extra.c.o"
 		AND NOT EXISTS "${_nested}/CMakeFiles/hn-buffer.dir/src/extra.c.obj")
