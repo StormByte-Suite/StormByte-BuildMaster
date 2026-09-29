@@ -110,6 +110,9 @@ endif()
 
 add_custom_target(run_buildmaster_smoke
 	COMMAND ${CMAKE_COMMAND}
+		--install "${CMAKE_BINARY_DIR}"
+		--prefix "${BUILDMASTER_INSTALL_DIR}"
+	COMMAND ${CMAKE_COMMAND}
 		-DBUILDMASTER_INSTALL_DIR=${BUILDMASTER_INSTALL_DIR}
 		-DBM_TEST_EXPECTED_DIR=${CMAKE_CURRENT_SOURCE_DIR}/../expected
 		-DBM_INSTALL_LIBDIR=${CMAKE_INSTALL_LIBDIR}
@@ -178,6 +181,8 @@ add_custom_target(run_buildmaster_smoke
 		links_transitive_test links_transitive_test_run
 		RaceA_install RaceB_install
 		links_race_test links_race_test_run
+		cr-buffer_install cr-bz2_install cr-crypto_install cr-pp_install
+		host_crypto_chain_test host_crypto_chain_test_run
 		# Rename
 		rename-variant_install rename_variant_link_test
 		# Repack (NOINSTALL phases + REPACK meta)

@@ -8,12 +8,14 @@
 [![Sponsor](https://img.shields.io/badge/Sponsor-StormBytePP-ea4aaa?logo=githubsponsors)](https://github.com/sponsors/StormBytePP)
 
 A **declarative CMake DSL** for turning other people’s CMake and Meson
-projects into first-class nodes in *your* graph.
+projects — plus libraries built directly in your parent CMake project —
+into first-class nodes in *your* graph.
 
 You register components and edges in any order. BuildMaster materializes
-stage targets, IMPORTED libraries, and link lines **once** — at the end of
-the parent `CMAKE_SOURCE_DIR` — into a single install prefix, with a
-toolchain and environment that actually reach nested Meson.
+stage targets, nested-build IMPORTED libraries, and link lines **once** —
+at the end of the parent `CMAKE_SOURCE_DIR` — into a single install prefix.
+Host components are real CMake targets from the moment you register them;
+their BuildMaster graph links are wired after the full graph is ready.
 
 This is not a wrapper around `ExternalProject_Add`. It is not FetchContent
 with extra macros. It is a small language for **graphs of third-party builds**.
@@ -56,6 +58,7 @@ BuildMaster is that layer, written once:
 | `LNK2005` / duplicate `.res` after `/WHOLEARCHIVE` | `STRIPRES` on static MSVC / clang-cl archives (default on) |
 | `shlwapi` on every consumer because a static `.lib` does not record it | `LINK={…}` on the producer (or the meta) |
 | `undefined pq` after linking `Database.a` — and the urge to `REPACK` the world | `links/<id>_static.txt` (see [Static archives](#static-archives-and-the-sidecar)) |
+| A static library whose system or BuildMaster links vanish at the final executable | `BACKEND=host`: keep a real CMake target and let its public link requirements travel |
 | `/FORCE:MULTIPLE` on the **parent** because one leaf needed it | `LINKFLAGS={…}` on **that** leaf (not inherited) |
 | Parent `-flto` / `/GL` leaking into a leaf that cannot probe under LTO | `IPO=off` on that leaf (or `IPO=fat` when you still need real objects) |
 | Hand-written `.pc` so the next Meson node finds this prefix | `PC={…}` on the leaf |
@@ -157,14 +160,17 @@ buildmaster_link(mytool mylib)
 ```
 
 No build directory. No out-variable. No generated fragment to `include()`.
-The backend is inferred from `srcdir` (`CMakeLists.txt` vs `meson.build`),
-after `SOURCE=` if you wrote one. Stage targets and the `INTERFACE` stub
-named `mylib` exist when registration returns; produced paths are filled
-in at the end of `CMAKE_SOURCE_DIR`.
+For nested CMake/Meson backends, the backend is inferred from `srcdir`
+(`CMakeLists.txt` vs `meson.build`), after `SOURCE=` if you wrote one.
+Those stage targets and the `INTERFACE` stub named `mylib` exist when
+registration returns; produced paths are filled in at the end of
+`CMAKE_SOURCE_DIR`. `BACKEND=host` instead creates a real target immediately.
 
 The fourth argument is a **CMake list** of `KEY=value` (a single string
-is a one-element list). It is backend-agnostic on purpose: write names
-a human can read, not generator flags.
+is a one-element list). For nested CMake/Meson components it is
+backend-agnostic on purpose: write names a human can read, not generator
+flags. A host component usually leaves this argument empty and uses normal
+`target_*` commands on its real target.
 
 Six keys are idioms and are rewritten for the backend:
 
@@ -218,6 +224,11 @@ on. Write them only when you want them off.
 `add_subdirectory` is enough. Do not `include(helpers.cmake)` from a
 consumer.
 
+BuildMaster can live anywhere: use its actual relative or absolute path in
+`add_subdirectory`. The only ordering rule is the ordinary CMake one: add
+BuildMaster before calling any `buildmaster_*` command. No sibling-folder
+layout is required.
+
 ---
 
 ## Ten commands
@@ -226,9 +237,9 @@ Ten commands. If you need an eleventh, the optstr is lying or the graph is.
 
 | Command | Role |
 |---------|------|
-| `buildmaster_component(id title srcdir options mode produced [optstr])` | Factory. Backend from `srcdir` (after `SOURCE=` / `BACKEND=`). No builddir |
+| `buildmaster_component(id title srcdir-or-sources options mode produced [optstr])` | Factory. Backend from `srcdir`, or an in-process target with `BACKEND=host`. No builddir |
 | `buildmaster_depend(source dest)` | Order-only edge |
-| `buildmaster_link(source dest [dest…])` | Link on the component `INTERFACE` **and** a depend edge when `dest` is a graph node. Aliases resolve to ids |
+| `buildmaster_link(source dest [dest…])` | Link on the component target **and** a depend edge when `dest` is a graph node. Aliases resolve to ids |
 | `buildmaster_meta(id title [, optstr])` | `INTERFACE` collection. `REPACK` publishes one merged static archive |
 | `buildmaster_meta_add(meta member…)` | Membership (allowed before `buildmaster_meta`) |
 | `buildmaster_group(id [title])` | Outline banner. No target, no edge |
@@ -251,19 +262,26 @@ While the parent is still configuring, you **declare**. You do **not**
 Materialization runs once via an internal `cmake_language(DEFER)` at the
 end of `CMAKE_SOURCE_DIR`.
 
+Nested CMake/Meson components use an `INTERFACE` target and run the three
+stages in order:
+
 ```text
-<id>_configure → <id>_build → <id>_install
-         ↑
-   <id>  (INTERFACE — this is what you link)
+<id> (INTERFACE) → <id>_configure → <id>_build → <id>_install
 ```
+
+`BACKEND=host` is different: `<id>` is already a real `STATIC` or `SHARED`
+target. Its empty `_configure`, `_build`, and `_install` targets are ordering
+anchors; `_build` depends on the library and `_install` depends on `_build`.
+You can use `target_include_directories`, `target_compile_options`, properties,
+and other ordinary CMake commands immediately after `buildmaster_component`.
 
 | Target | Role |
 |--------|------|
-| `<id>` | `INTERFACE`. Depends on `<id>_install`. **This is what you link.** |
-| `<id>_configure` | Nested CMake or Meson setup |
-| `<id>_build` | Compile |
-| `<id>_install` | Publish into the shared prefix when the id is not `NOINSTALL`. Always runs oficios (`RENAME`, outputs, `STRIPRES`, `PC`) on the artifact that exists (prefix or BUILDDIR). Does **not** call `cmake --install` / `meson install` under `NOINSTALL` |
-| produced libs | `STATIC` / `SHARED` **IMPORTED** files under the prefix (or the build dir) |
+| `<id>` | Nested backend: `INTERFACE`, depending on `<id>_install`. Host: real `STATIC` / `SHARED` library, available immediately. |
+| `<id>_configure` | Nested CMake or Meson setup; empty ordering anchor for host |
+| `<id>_build` | Nested compile; for host, depends on the real parent-project library target |
+| `<id>_install` | Nested backend publishes into the shared prefix and runs oficios. Host: empty anchor depending on `_build`; use normal parent CMake `install()` rules to publish it |
+| produced libs | Nested backend: `STATIC` / `SHARED` **IMPORTED** files under the prefix (or build dir). Host: real parent-project library target |
 | produced exe | File under `BINDIR` (or the build dir). No `IMPORTED` executable on `<id>` |
 
 | Nested configure | When |
@@ -271,9 +289,10 @@ end of `CMAKE_SOURCE_DIR`.
 | **Eager** | The component is not the `source` of any recorded wait edge |
 | **Deferred** | It must wait on another node — configure runs at build time under `<id>_configure` |
 
-The `INTERFACE` stub exists as soon as you call `buildmaster_component`.
-`ALIAS=` on the optstr is applied at that moment. You may still write
-`add_library(Vendor::Foo ALIAS foo)` yourself; a clash with a different
+For nested backends, the `INTERFACE` stub exists as soon as you call
+`buildmaster_component`. For host, the real library exists at that point.
+`ALIAS=` is applied to whichever target the backend creates. You may still
+write `add_library(Vendor::Foo ALIAS foo)` yourself; a clash with a different
 target is FATAL.
 
 BuildMaster assigns `${CMAKE_CURRENT_BINARY_DIR}/bm/<id>` and creates it.
@@ -311,9 +330,14 @@ Aliases passed as `source` or `dest` resolve to the id first.
 
 ### `buildmaster_link(source dest [dest…])`
 
-Records a link on the component `INTERFACE`. Several dests on one call
-are the same contract applied once each. A dest repeated in the same
-call is WARNING + skip.
+Records a link on the component target. For nested backends that is the
+component `INTERFACE`; for host it is the real CMake library target. Several
+dests on one call are the same contract applied once each. A dest repeated in
+the same call is WARNING + skip.
+
+Edges are recorded now and resolved after all components materialize. That
+is what lets a host target link a component declared later without a stub
+link being attempted too early.
 
 `dest` may be another component, a meta, an alias of either, an existing
 CMake target, an archive that already exists on disk, or a library spec
@@ -442,7 +466,15 @@ the consumer only sees one file. Do not. `REPACK` is for
 `NOINSTALL` members you never wanted on the prefix. Postgres is a
 real component. It stays a real `.a`.
 
-`write_one` always emits `links/<id>_static.txt`:
+That does not mean `REPACK` is the only way to keep static dependencies
+attached. If the library is yours to build in the parent project,
+`BACKEND=host` gives it a real CMake target: `LINK=` system libraries and
+`buildmaster_link` component targets become public link requirements for a
+static library, so consumers inherit them through CMake. Use `REPACK` when
+you deliberately want one physical archive made from `NOINSTALL` members,
+not just to carry link requirements to the final executable.
+
+Nested build backends emit `links/<id>_static.txt`:
 
 ```text
 # Auto-generated by BuildMaster — do not edit
@@ -471,14 +503,19 @@ get `-L<prefix> -lpq` without naming postgres and without `REPACK`.
 Do not `include()` the `.txt`. Do not put `ADD` or
 `target_link_libraries` in it.
 
+Host targets do not use this sidecar. Their real CMake link interface carries
+public system and component requirements from static libraries to consumers.
+
 ---
 
 ## Raw system libraries (`LINK`)
 
 `LINK=` / `LINK={…}` are raw linker **names** (`shlwapi`, `ws2_32`, `m`,
-`-framework CoreFoundation`). On a **shared** id they go on that id’s
-`INTERFACE`. On a **static** id they also land in `_static.txt` so a
-later flatten still sees them when the IMPORTED `.a` forgot.
+`-framework CoreFoundation`). For nested backends, they go on the id’s
+`INTERFACE`; static ids also record them in `_static.txt` so a later flatten
+still sees them when the IMPORTED `.a` forgot. For `BACKEND=host`, they are
+applied directly to the real target: `PUBLIC` for static and `PRIVATE` for
+shared. That is standard CMake usage-requirement propagation, not a graph edge.
 
 They are **not** graph nodes. A BM component belongs in
 `buildmaster_link`, not in `LINK=`. Bundled vs system is the dest
@@ -576,12 +613,12 @@ KEY=value;KEY2=value with spaces;PC={VERSION=1.2.3;NAME=foo}
 | `WHOLE` | OFF | Whole-archive the produced statics |
 | `STRIPRES` | ON | Strip `*.res` from static MSVC / clang-cl archives |
 | `NOINSTALL` | OFF | Build without publishing to the shared prefix. Flag, not a switch |
-| `BACKEND` | detect | `cmake` or `meson` when both markers exist |
+| `BACKEND` | detect | `cmake` or `meson` when both markers exist; `host` builds an in-process target from the third-argument source list |
 | `SOURCE` | (srcdir) | Subtree under the positional `srcdir`. Applied **before** detect |
-| `ALIAS=` / `ALIAS={…}` | empty | `add_library(alias ALIAS id)` after the stub |
-| `REPACK` | OFF | Meta, or a **static** component: merge NOINSTALL static dests into the prefix archive. Not a substitute for `_static.txt` |
+| `ALIAS=` / `ALIAS={…}` | empty | `add_library(alias ALIAS id)` after target creation |
+| `REPACK` | OFF | Meta, or a **static** component: merge NOINSTALL static dests into the prefix archive. Not a substitute for `_static.txt` or host target link propagation |
 | `PC={…}` | off | Write a helper `.pc` after install. Does **not** demand pkg-config. FATAL on `executable` |
-| `LINK=` / `LINK={…}` | empty | Raw system linker names. Static ids also copy them into `_static.txt` |
+| `LINK=` / `LINK={…}` | empty | Raw system linker names. Nested static ids also copy them into `_static.txt`; host applies them to the real target |
 | `LINKFLAGS=` / `LINKFLAGS={…}` | empty | Raw flags for the nested link only |
 | `GIT={…}` | empty | Fetch / switch / reset / patch. `ROOT=` uses the same isolation as `SOURCE=` |
 | `FILES={…}` | empty | Download / unpack / optional inner `SOURCE` tree (not the optstr) |
@@ -641,10 +678,56 @@ When `srcdir` (after `SOURCE=`) contains both `CMakeLists.txt` and
 "BACKEND=meson"
 ```
 
-Allowed names live in `BUILDMASTER_FACTORY_BACKENDS` (`cmake`, `meson`
-in this release). Empty or unknown: FATAL. There is no `BACKEND=none`
+Allowed names live in `BUILDMASTER_FACTORY_BACKENDS` (`cmake`, `meson`,
+`host` in this release). Empty or unknown: FATAL. `host` is a BuildMaster
+mode, not a third-party build generator. There is no `BACKEND=none`
 — that is `headers` without a backend, or `NOINSTALL` when you truly
 have no generator.
+
+### In-process CMake mode (`BACKEND=host`)
+
+Use this when you own the library sources and want an ordinary target in the
+parent CMake project instead of a nested configure. The third argument is a
+list of source files, not a directory. Only `static` and `shared` modes are
+supported; the target name is the component id and is ready for raw CMake
+commands as soon as registration returns.
+
+```cmake
+file(GLOB_RECURSE mylib_sources CONFIGURE_DEPENDS
+	"${CMAKE_CURRENT_LIST_DIR}/src/*.cxx")
+
+set(_host_options "BACKEND=host;ALIAS=Vendor::MyLib")
+if(WIN32)
+	list(APPEND _host_options "LINK={advapi32;iphlpapi;ws2_32}")
+elseif(APPLE)
+	list(APPEND _host_options "LINK={-framework CoreFoundation;-framework IOKit}")
+endif()
+
+buildmaster_component(
+	mylib
+	"My Library"
+	"${mylib_sources}"
+	""
+	static
+	mylib
+	"${_host_options}"
+)
+
+target_include_directories(mylib SYSTEM BEFORE PUBLIC
+	"${CMAKE_CURRENT_LIST_DIR}/include")
+target_compile_definitions(mylib PRIVATE MYLIB_BUILDING)
+buildmaster_link(mylib base)
+
+install(TARGETS mylib ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+```
+
+The registration creates the real library and its stage anchors, but does
+not run a nested install. Add normal CMake `install()` rules when the host
+library should be published by the parent project's install step.
+`buildmaster_link` records graph edges at declaration; BuildMaster applies
+them after every component has materialized, so declaration order does not
+constrain host dependencies. On static host targets, both component links
+and `LINK=` requirements propagate to the final consumer.
 
 ---
 
@@ -956,13 +1039,14 @@ Parent `CMAKE_{C,CXX}_COMPILER_LAUNCHER`, `CCACHE_DIR` and
 
 ## Recursive usage
 
-`add_subdirectory(buildmaster)` from a nested project is safe. The
-first bootstrap owns `BUILDMASTER_ROOT`, the toolchain dump, and
-`BUILDMASTER_LINKS_DIR`. A second tree loads the parent helpers and
-returns. Match versions across submodules; a mismatch is WARNING.
+Adding BuildMaster from a nested project is safe regardless of where its
+source directory lives. Pass that directory's actual relative or absolute
+path to `add_subdirectory`, and do so before using any `buildmaster_*`
+command. The first bootstrap owns `BUILDMASTER_ROOT`, the toolchain dump, and
+`BUILDMASTER_LINKS_DIR`. A second tree loads the parent helpers and returns.
+Match versions across submodules; a mismatch is WARNING.
 
-Always `add_subdirectory(buildmaster)`. Do not special-case “I am
-already inside BM”.
+Do not special-case “I am already inside BM”.
 
 Because helpers and `links/` belong to the trunk, a nested project
 that also uses BuildMaster writes into the **same** `links/` folder.

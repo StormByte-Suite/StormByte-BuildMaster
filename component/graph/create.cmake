@@ -2,8 +2,8 @@
 # component/graph/create.cmake — _bm_graph_create
 # =============================================================================
 
-## @brief Register a component. Creates an empty INTERFACE `<id>` before return.
-## @param[in] _component Short component identifier (INTERFACE target name).
+## @brief Register a component and create its public target as appropriate.
+## @param[in] _component Short component identifier (target name).
 ## @param[in] _component_title Human-readable title.
 ## @param[in] _srcdir Backend source directory (after optstr `SOURCE=`).
 ##            GIT ops use `BUILDMASTER_COMPONENT_<id>_GIT_WORKDIR` when set
@@ -12,10 +12,12 @@
 ##            only until apply rewrites SRCDIR.
 ## @param[in] _options Options forwarded to internal stage generators.
 ## @param[in] _library_mode `static`, `shared`, `headers`, or `executable`.
-## @param[in] _build_system `cmake`, `meson`, `none`, or `pending`.
+## @param[in] _build_system `cmake`, `meson`, `none`, `pending`, or `host`.
 ##            `pending` means FILES SOURCE will unpack the tree and
 ##            autodetect runs after apply. `none` is valid for `headers`,
 ##            or for any mode when `NOINSTALL` is set (no nested generate).
+##            `host` creates its real library in the factory after graph
+##            registration, without an INTERFACE stub.
 ## @param[in] _produced Primary specs (`<name>` or `<subdir>/<name>`).
 ##            Empty for headers mode. Libraries: archive/soname stems.
 ##            `executable`: binary stems (Unix `bin/<stem>`, Windows
@@ -36,7 +38,7 @@
 ##            GIT={…} (`ROOT=` is always under the git work tree), FILES={…},
 ##            REQUIRE_TOOL=… / REQUIRE_TOOL={…},
 ##            ALIAS=<name> / ALIAS={name;name2} (`add_library(name ALIAS <id>)`
-##            after the INTERFACE stub; `buildmaster_link` / `depend` resolve
+##            after target creation; `buildmaster_link` / `depend` resolve
 ##            alias → id before recording the pair),
 ##            REPACK (flag; static publisher only — merge first-level
 ##            NOINSTALL static depend/link dests into this id's prefix
@@ -46,16 +48,17 @@
 ## @note `PRIVATE_HEADERS` is TRUE when `_build_system` is `none`, or when
 ##       `NOINSTALL` is set on a headers id. A source that does install may
 ##       wait on those dests (PRIVATE `-I` injection is not a prefix publish).
-## @note The INTERFACE exists as soon as this function returns, so ALIAS /
-##       target_* in the same CMakeLists (before DEFER) see `<id>`.
+## @note Non-host INTERFACE targets exist as soon as this function returns.
+##       Host target creation is completed immediately after this function
+##       returns, before the public factory returns.
 ##       Deferred finalize only emits stages and the fragment. A second
 ##       `_bm_graph_create` for the same id is FATAL via `_bm_id_clash_fatal`
 ##       (first public-macro origin, `file:line`, when known).
 ## @note `_bm_tools_*_stages` is internal; backends call it from materialize
 ##       only.
 ## @note `LINK` items are external to BuildMaster (system / SDK libraries).
-##       They are applied `INTERFACE` on `<id>` and propagate through CMake
-##       `target_link_libraries` to the final artefact that consumes that id.
+##       Non-host backends apply them `INTERFACE` on `<id>`. Host applies
+##       them `PUBLIC` for static and `PRIVATE` for shared libraries.
 ##       They do not repair a third-party archive that was linked without
 ##       going through this INTERFACE. Not a substitute for `buildmaster_link()`.
 ## @note `LINKFLAGS` items are external raw linker flags
@@ -185,9 +188,10 @@ function(_bm_graph_create _component _component_title _srcdir
 	if(NOT _build_system STREQUAL "cmake"
 			AND NOT _build_system STREQUAL "meson"
 			AND NOT _build_system STREQUAL "none"
-			AND NOT _build_system STREQUAL "pending")
+			AND NOT _build_system STREQUAL "pending"
+			AND NOT _build_system STREQUAL "host")
 		_bm_log_message(COMPONENT FATAL
-			"_bm_graph_create: unknown build system '${_build_system}' (expected cmake, meson, none, or pending)")
+			"_bm_graph_create: unknown build system '${_build_system}' (expected cmake, meson, none, pending, or host)")
 	endif()
 
 	if(_build_system STREQUAL "none" AND NOT _library_mode STREQUAL "headers")
@@ -389,15 +393,19 @@ function(_bm_graph_create _component _component_title _srcdir
 	set_property(GLOBAL PROPERTY BUILDMASTER_COMPONENT_${_component}_INSTALL_OFICIOS
 		"${_install_oficios}")
 
-	add_library("${_component}" INTERFACE)
-	_bm_alias_apply("${_component}" "${_reg_aliases}")
+	if(NOT _build_system STREQUAL "host")
+		add_library("${_component}" INTERFACE)
+		_bm_alias_apply("${_component}" "${_reg_aliases}")
+	endif()
 
 	get_property(_git_wd GLOBAL PROPERTY BUILDMASTER_COMPONENT_${_component}_GIT_WORKDIR)
 	if("${_git_wd}" STREQUAL "")
 		set(_git_wd "${_srcdir}")
 	endif()
-	_bm_comp_apply_git(
-		"${_component}" "${_component_title}" "${_git_wd}" "${_options_string}")
+	if(NOT _build_system STREQUAL "host")
+		_bm_comp_apply_git(
+			"${_component}" "${_component_title}" "${_git_wd}" "${_options_string}")
+	endif()
 
 	_bm_graph_defer_arm()
 	_bm_log_message(COMPONENT DEBUG "Registered component ${_component} (${_build_system}/${_library_mode})")

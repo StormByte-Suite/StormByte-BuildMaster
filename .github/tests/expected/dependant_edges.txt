@@ -57,6 +57,19 @@ hook-b -> hook-b_install
 hooks-stamp -> hooks-stamp_install
 hooks-stamp_configure -> hook-a_install
 
+# host-crypto-chain
+cr-buffer_build -> cr-buffer
+cr-buffer_install -> cr-buffer_build
+cr-bz2_build -> cr-bz2
+cr-bz2_install -> cr-bz2_build
+cr-crypto -> cr-buffer_install
+cr-crypto -> cr-bz2_install
+cr-crypto_build -> cr-crypto
+cr-crypto_install -> cr-crypto_build
+cr-crypto -> cr-pp_install
+cr-pp_build -> cr-pp
+cr-pp_install -> cr-pp_build
+
 # late-link
 late-dst -> late-dst_install
 late-src -> late-src_install

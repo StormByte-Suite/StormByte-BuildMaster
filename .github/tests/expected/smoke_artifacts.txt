@@ -131,6 +131,32 @@ bin/bm_rescan_exe.exe|windows
 <lib>/hooks-stamp.lib|windows
 <lib>/libhooks-stamp.a|unix
 
+# host-crypto-chain
+<include>/cr_base.h|all
+<include>/cr_buffer.h|all
+<include>/cr_bz2.h|all
+<include>/cr_crypto.h|all
+<include>/cr_cryptopp.h|all
+<include>/cr_logger.h|all
+<include>/cr_string.h|all
+<include>/cr_system.h|all
+<lib>/cr-base.lib|windows
+<lib>/cr-buffer.lib|windows
+<lib>/cr-bz2.lib|windows
+<lib>/cr-crypto.lib|windows
+<lib>/cr-logger.lib|windows
+<lib>/cr-pp.lib|windows
+<lib>/cr-string.lib|windows
+<lib>/cr-system.lib|windows
+<lib>/libcr-base.a|unix
+<lib>/libcr-buffer.a|unix
+<lib>/libcr-bz2.a|unix
+<lib>/libcr-crypto.a|unix
+<lib>/libcr-logger.a|unix
+<lib>/libcr-pp.a|unix
+<lib>/libcr-string.a|unix
+<lib>/libcr-system.a|unix
+
 # late-link
 <include>/latedst.h|all
 <include>/latesrc.h|all

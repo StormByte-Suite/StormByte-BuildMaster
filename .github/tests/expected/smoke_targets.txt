@@ -84,6 +84,14 @@ hook-b_install
 # hooks-stamp
 hooks-stamp_install
 
+# host-crypto-chain
+cr-buffer_install
+cr-bz2_install
+cr-crypto_install
+cr-pp_install
+host_crypto_chain_test
+host_crypto_chain_test_run
+
 # late-link
 late-dst_install
 late-src_install

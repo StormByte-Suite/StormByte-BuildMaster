@@ -1,5 +1,6 @@
 # Synthetic components for the BuildMaster harness.
 # One subdirectory per feature. recursive/ stays as cmake|meson.
+# Sections alphabetical (case insensitive).
 
 if(NOT BM_TEST_REPO_ROOT)
 	get_filename_component(BM_TEST_REPO_ROOT
@@ -9,9 +10,28 @@ if(NOT BM_TEST_REPO_ROOT)
 endif()
 
 # ---------------------------------------------------------------------------
-# NOINSTALL
+# ALIAS + links/ (Buffer→Logger→Base; host only links Buffer)
+# static chain (existing) + SHARED host (Crypto analogue)
 # ---------------------------------------------------------------------------
-add_subdirectory(noinstall)
+add_subdirectory(host-crypto-chain)
+add_subdirectory(links-chain)
+add_subdirectory(links-race)
+add_subdirectory(links-shared-chain)
+add_subdirectory(links-static-closure)
+add_subdirectory(links-transitive)
+
+# ---------------------------------------------------------------------------
+# executable mode
+# ---------------------------------------------------------------------------
+add_subdirectory(exe-link)
+add_subdirectory(exe-meta-nolib)
+add_subdirectory(exe-meta-whole)
+add_subdirectory(exe-noinstall)
+add_subdirectory(exe-rename)
+add_subdirectory(exe-repack-meta)
+add_subdirectory(exe-rescan)
+add_subdirectory(exe/cmake)
+add_subdirectory(exe/meson)
 
 # ---------------------------------------------------------------------------
 # File helpers (FILES unpack on a real component)
@@ -33,16 +53,38 @@ add_subdirectory(sdkloader)
 add_subdirectory(git-sandbox)
 
 # ---------------------------------------------------------------------------
+# harness-expand
+# ---------------------------------------------------------------------------
+add_subdirectory(backend-pick)
+add_subdirectory(dup-link)
+add_subdirectory(git-reset-patch)
+add_subdirectory(hooks)
+add_subdirectory(hooks-stamp)
+add_subdirectory(late-link)
+add_subdirectory(link-raw)
+add_subdirectory(omit-builddir)
+add_subdirectory(stamp-patch)
+
+# ---------------------------------------------------------------------------
+# Install archive rename (Meson zs.* → produced z.*)
+# ---------------------------------------------------------------------------
+add_subdirectory(rename)
+
+# ---------------------------------------------------------------------------
+# LINKFLAGS platform groups
+# ---------------------------------------------------------------------------
+add_subdirectory(linkflags)
+
+# ---------------------------------------------------------------------------
 # Meta collections
 # ---------------------------------------------------------------------------
 add_subdirectory(meta)
 add_subdirectory(meta-toolchain)
 
 # ---------------------------------------------------------------------------
-# Outline groups (banners + walk order)
+# NOINSTALL
 # ---------------------------------------------------------------------------
-add_subdirectory(groups)
-add_subdirectory(groups-late)
+add_subdirectory(noinstall)
 
 # ---------------------------------------------------------------------------
 # Order / link
@@ -52,9 +94,10 @@ add_subdirectory(link-component)
 add_subdirectory(order-independent)
 
 # ---------------------------------------------------------------------------
-# LINKFLAGS platform groups
+# Outline groups (banners + walk order)
 # ---------------------------------------------------------------------------
-add_subdirectory(linkflags)
+add_subdirectory(groups)
+add_subdirectory(groups-late)
 
 # ---------------------------------------------------------------------------
 # Pkg-config helper
@@ -63,25 +106,20 @@ add_subdirectory(pc)
 add_subdirectory(require-tool-pkgconfig)
 
 # ---------------------------------------------------------------------------
+# PRIVATE headers (no backend) + configure -I
+# ---------------------------------------------------------------------------
+add_subdirectory(private-headers)
+
+# ---------------------------------------------------------------------------
 # Recursive nested BuildMaster
 # ---------------------------------------------------------------------------
 add_subdirectory(recursive/cmake)
 add_subdirectory(recursive/meson)
 
 # ---------------------------------------------------------------------------
-# ALIAS + links/ (Buffer→Logger→Base; host only links Buffer)
-# static chain (existing) + SHARED host (Crypto analogue)
+# Slow configure (Ninja COMMENT timing)
 # ---------------------------------------------------------------------------
-add_subdirectory(links-chain)
-add_subdirectory(links-shared-chain)
-add_subdirectory(links-transitive)
-add_subdirectory(links-race)
-add_subdirectory(links-static-closure)
-
-# ---------------------------------------------------------------------------
-# Install archive rename (Meson zs.* → produced z.*)
-# ---------------------------------------------------------------------------
-add_subdirectory(rename)
+add_subdirectory(slow-configure)
 
 # ---------------------------------------------------------------------------
 # Static archive merge
@@ -90,50 +128,14 @@ add_subdirectory(repack)
 add_subdirectory(repack-static)
 
 # ---------------------------------------------------------------------------
-# Slow configure (Ninja COMMENT timing)
-# ---------------------------------------------------------------------------
-add_subdirectory(slow-configure)
-
-# ---------------------------------------------------------------------------
 # TOOLCHAIN swap
 # ---------------------------------------------------------------------------
+add_subdirectory(tc-prefix)
 add_subdirectory(toolchain)
 add_subdirectory(toolchain-sanity)
 add_subdirectory(translator)
-add_subdirectory(tc-prefix)
 
 # ---------------------------------------------------------------------------
 # WHOLE archive link
 # ---------------------------------------------------------------------------
 add_subdirectory(whole)
-
-# ---------------------------------------------------------------------------
-# harness-expand
-# ---------------------------------------------------------------------------
-add_subdirectory(hooks)
-add_subdirectory(hooks-stamp)
-add_subdirectory(late-link)
-add_subdirectory(omit-builddir)
-add_subdirectory(backend-pick)
-add_subdirectory(dup-link)
-add_subdirectory(link-raw)
-add_subdirectory(git-reset-patch)
-add_subdirectory(stamp-patch)
-
-# ---------------------------------------------------------------------------
-# PRIVATE headers (no backend) + configure -I
-# ---------------------------------------------------------------------------
-add_subdirectory(private-headers)
-
-# ---------------------------------------------------------------------------
-# executable mode
-# ---------------------------------------------------------------------------
-add_subdirectory(exe/cmake)
-add_subdirectory(exe/meson)
-add_subdirectory(exe-link)
-add_subdirectory(exe-rename)
-add_subdirectory(exe-noinstall)
-add_subdirectory(exe-repack-meta)
-add_subdirectory(exe-meta-nolib)
-add_subdirectory(exe-meta-whole)
-add_subdirectory(exe-rescan)
