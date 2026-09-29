@@ -183,6 +183,7 @@ add_custom_target(run_buildmaster_smoke
 		links_race_test links_race_test_run
 		cr-buffer_install cr-bz2_install cr-crypto_install cr-pp_install
 		host_crypto_chain_test host_crypto_chain_test_run
+		host_nested_reconfigure_run
 		# Rename
 		rename-variant_install rename_variant_link_test
 		# Repack (NOINSTALL phases + REPACK meta)

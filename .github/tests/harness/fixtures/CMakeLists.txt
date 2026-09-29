@@ -14,6 +14,7 @@ endif()
 # static chain (existing) + SHARED host (Crypto analogue)
 # ---------------------------------------------------------------------------
 add_subdirectory(host-crypto-chain)
+add_subdirectory(host-nested-reconfigure)
 add_subdirectory(links-chain)
 add_subdirectory(links-race)
 add_subdirectory(links-shared-chain)

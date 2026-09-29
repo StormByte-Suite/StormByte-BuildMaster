@@ -282,7 +282,72 @@ function(_bm_links_write_all)
 			_bm_links_write_one("${_id}")
 		endforeach()
 	endforeach()
+	_bm_links_owned_save()
 	_bm_log_message(COMPONENT LOWLEVEL "Exiting _bm_links_write_all")
+endfunction()
+
+## @brief Ids whose links file this build dir published last configure.
+## @param[out] _out_var Parent-scope list read from
+##             `${CMAKE_BINARY_DIR}/bm-owned-links.txt`. Empty if absent.
+## @note Read once per configure and cached, so the snapshot predates
+##       `_bm_links_owned_save` overwriting the file.
+function(_bm_links_owned_prev _out_var)
+	_bm_log_message(COMPONENT LOWLEVEL "Entering _bm_links_owned_prev")
+	get_property(_loaded GLOBAL PROPERTY BUILDMASTER_LINKS_OWNED_LOADED)
+	if(NOT _loaded)
+		set_property(GLOBAL PROPERTY BUILDMASTER_LINKS_OWNED_LOADED TRUE)
+		set(_prev "")
+		if(NOT "${CMAKE_BINARY_DIR}" STREQUAL ""
+				AND EXISTS "${CMAKE_BINARY_DIR}/bm-owned-links.txt")
+			file(STRINGS "${CMAKE_BINARY_DIR}/bm-owned-links.txt" _prev)
+		endif()
+		set_property(GLOBAL PROPERTY BUILDMASTER_LINKS_OWNED_PREV "${_prev}")
+	endif()
+	get_property(_prev GLOBAL PROPERTY BUILDMASTER_LINKS_OWNED_PREV)
+	set(${_out_var} "${_prev}" PARENT_SCOPE)
+	_bm_log_message(COMPONENT LOWLEVEL "Exiting _bm_links_owned_prev")
+endfunction()
+
+## @brief Persist the ids this process published to `bm-owned-links.txt`.
+## @note Registered components, created metas, and ids attached by
+##       `_bm_links_attach_new` whose `BUILDMASTER_LINKS_OWNER_<id>` is one
+##       of them. A reconfigure of this build dir (ninja re-running CMake
+##       in a nested project) must configure these again instead of
+##       skipping them as "already built by" another process.
+function(_bm_links_owned_save)
+	_bm_log_message(COMPONENT LOWLEVEL "Entering _bm_links_owned_save")
+	if("${CMAKE_BINARY_DIR}" STREQUAL "")
+		_bm_log_message(COMPONENT LOWLEVEL "Exiting _bm_links_owned_save")
+		return()
+	endif()
+	_bm_links_owned_prev(_ignored)
+	get_property(_ids GLOBAL PROPERTY BUILDMASTER_COMPONENT_IDS)
+	set(_own "${_ids}")
+	get_property(_metas GLOBAL PROPERTY BUILDMASTER_META_IDS)
+	foreach(_m IN LISTS _metas)
+		get_property(_created GLOBAL PROPERTY BUILDMASTER_META_${_m}_CREATED)
+		if(_created)
+			list(APPEND _own "${_m}")
+		endif()
+	endforeach()
+	foreach(_id IN LISTS _ids)
+		get_property(_att GLOBAL PROPERTY
+			BUILDMASTER_COMPONENT_${_id}_LINKS_ATTACHED)
+		foreach(_a IN LISTS _att)
+			get_property(_owner GLOBAL PROPERTY BUILDMASTER_LINKS_OWNER_${_a})
+			if(NOT "${_owner}" STREQUAL "" AND "${_owner}" IN_LIST _ids)
+				list(APPEND _own "${_a}")
+			endif()
+		endforeach()
+	endforeach()
+	set(_txt "")
+	if(_own)
+		list(REMOVE_DUPLICATES _own)
+		list(JOIN _own "\n" _txt)
+		string(APPEND _txt "\n")
+	endif()
+	file(WRITE "${CMAKE_BINARY_DIR}/bm-owned-links.txt" "${_txt}")
+	_bm_log_message(COMPONENT LOWLEVEL "Exiting _bm_links_owned_save")
 endfunction()
 
 ## @brief Include `${BUILDMASTER_LINKS_DIR}/*.cmake` (IMPORTED stubs + aliases).
@@ -326,10 +391,11 @@ endfunction()
 ##       nested configure returns: the id plus dests already stored in
 ##       its links file, and a wait on `<id>_install` or on the component
 ##       that created the file.
-## @note A leftover `links/<id>.cmake` from a previous configure without
-##       wipe skips the nested cmake. Then Logger/Base files are never
-##       rewritten this run and flatten sees an empty glob. Wipe harness
-##       when debugging this path.
+## @note An id listed in this build dir's `bm-owned-links.txt` was
+##       published by this same process last configure. Its leftover
+##       links file is not another process: configure it again. Skipping
+##       it on a ninja-driven nested reconfigure dropped `<id>_install`
+##       and the host library compiled before its dependencies.
 function(_bm_links_try_reuse _id _title out_skip)
 	_bm_log_message(COMPONENT LOWLEVEL "Entering _bm_links_try_reuse")
 	_bm_links_reuse_needs_reset()
@@ -367,7 +433,11 @@ function(_bm_links_try_reuse _id _title out_skip)
 	if(NOT _skip AND NOT "${BUILDMASTER_LINKS_DIR}" STREQUAL "")
 		_bm_path_sanitize(_safe "${_id}")
 		set(_file "${BUILDMASTER_LINKS_DIR}/${_safe}.cmake")
-		if(EXISTS "${_file}")
+		_bm_links_owned_prev(_owned)
+		if(EXISTS "${_file}" AND "${_id}" IN_LIST _owned)
+			_bm_log_message(COMPONENT DEBUG
+				"reuse: '${_id}' was published by this build dir; configuring again")
+		elseif(EXISTS "${_file}")
 			include("${_file}")
 			set(_who "${_id}")
 			if(DEFINED _BM_LINKS_ORIGIN_TITLE AND NOT "${_BM_LINKS_ORIGIN_TITLE}" STREQUAL "")

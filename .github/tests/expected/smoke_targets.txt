@@ -92,6 +92,9 @@ cr-pp_install
 host_crypto_chain_test
 host_crypto_chain_test_run
 
+# host-nested-reconfigure
+host_nested_reconfigure_run
+
 # late-link
 late-dst_install
 late-src_install
