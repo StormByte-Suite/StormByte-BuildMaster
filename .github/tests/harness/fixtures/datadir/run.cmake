@@ -25,8 +25,11 @@ foreach(_a IN LISTS _archives)
 		message(FATAL_ERROR "datadir: tar ${_a} failed")
 	endif()
 endforeach()
-file(SHA256 "${_pack}/top_payload.tar.gz" _hash_top)
-file(SHA256 "${_pack}/nest_payload.tar.gz" _hash_nest)
+file(MAKE_DIRECTORY "${_pack}/top" "${_pack}/nest")
+file(RENAME "${_pack}/top_payload.tar.gz" "${_pack}/top/payload")
+file(RENAME "${_pack}/nest_payload.tar.gz" "${_pack}/nest/payload")
+file(SHA256 "${_pack}/top/payload" _hash_top)
+file(SHA256 "${_pack}/nest/payload" _hash_nest)
 file(TO_CMAKE_PATH "${_pack}" _pack_url)
 
 ## @brief Configure + build `DD_SRC` into `_bld` under `cmake -E env ${_env}`.
@@ -42,9 +45,9 @@ function(_dd_build _label _bld _env)
 			"-DCMAKE_C_COMPILER=${DD_C_COMPILER}"
 			"-DCMAKE_CXX_COMPILER=${DD_CXX_COMPILER}"
 			"-DDD_BM_ROOT=${DD_BM_ROOT}"
-			"-DDD_URL_TOP=file://${_pack_url}/top_payload.tar.gz"
+			"-DDD_URL_TOP=file://${_pack_url}/top/payload"
 			"-DDD_HASH_TOP=${_hash_top}"
-			"-DDD_URL_NEST=file://${_pack_url}/nest_payload.tar.gz"
+			"-DDD_URL_NEST=file://${_pack_url}/nest/payload"
 			"-DDD_HASH_NEST=${_hash_nest}"
 			${ARGN}
 		RESULT_VARIABLE _rc
@@ -106,9 +109,9 @@ function(_dd_cfg_cmd _out_var _bld)
 		"-DCMAKE_C_COMPILER=${DD_C_COMPILER}"
 		"-DCMAKE_CXX_COMPILER=${DD_CXX_COMPILER}"
 		"-DDD_BM_ROOT=${DD_BM_ROOT}"
-		"-DDD_URL_TOP=file://${_pack_url}/top_payload.tar.gz"
+		"-DDD_URL_TOP=file://${_pack_url}/top/payload"
 		"-DDD_HASH_TOP=${_hash_top}"
-		"-DDD_URL_NEST=file://${_pack_url}/nest_payload.tar.gz"
+		"-DDD_URL_NEST=file://${_pack_url}/nest/payload"
 		"-DDD_HASH_NEST=${_hash_nest}"
 		${ARGN}
 		PARENT_SCOPE)
@@ -137,12 +140,12 @@ _dd_expect_clean_tmp("bad hash" "${DD_BIN}/data_bad")
 
 # Failed transfer without a hash must not leave a file that a later run
 # would take as a cache hit.
-file(RENAME "${_pack}/top_payload.tar.gz" "${_pack}/top_payload.tar.gz.away")
+file(RENAME "${_pack}/top/payload" "${_pack}/top/payload.away")
 _dd_cfg_cmd(_cmd "${DD_BIN}/g"
 	"-DBUILDMASTER_DATADIR=${DD_BIN}/data_nohash" "-DDD_HASH_TOP=NONE")
 execute_process(COMMAND ${_cmd}
 	RESULT_VARIABLE _rc OUTPUT_VARIABLE _out ERROR_VARIABLE _out)
-file(RENAME "${_pack}/top_payload.tar.gz.away" "${_pack}/top_payload.tar.gz")
+file(RENAME "${_pack}/top/payload.away" "${_pack}/top/payload")
 if(_rc EQUAL 0)
 	message(FATAL_ERROR "datadir: failed transfer: configure succeeded\n${_out}")
 endif()
@@ -188,7 +191,12 @@ _dd_expect_in("parallel" "${DD_BIN}/data_par")
 _dd_expect_clean_tmp("parallel" "${DD_BIN}/data_par")
 foreach(_a IN LISTS _archives)
 	file(SHA256 "${DD_BIN}/data_par/downloads/${_a}" _got)
-	file(SHA256 "${_pack}/${_a}" _want)
+	if(_a STREQUAL "top_payload.tar.gz")
+		set(_source_dir top)
+	else()
+		set(_source_dir nest)
+	endif()
+	file(SHA256 "${_pack}/${_source_dir}/payload" _want)
 	if(NOT _got STREQUAL _want)
 		message(FATAL_ERROR "datadir: parallel: ${_a} corrupted")
 	endif()
@@ -200,12 +208,24 @@ _dd_expect_clean_tmp("-D" "${DD_BIN}/data_d")
 
 # Fresh build dir, same data dir, sources gone: must hit the cache.
 foreach(_a IN LISTS _archives)
-	file(RENAME "${_pack}/${_a}" "${_pack}/${_a}.away")
+	if(_a STREQUAL "top_payload.tar.gz")
+		set(_source_dir top)
+	else()
+		set(_source_dir nest)
+	endif()
+	file(RENAME "${_pack}/${_source_dir}/payload"
+		"${_pack}/${_source_dir}/payload.away")
 endforeach()
 _dd_build("cache" "${DD_BIN}/b" "${_unset}" "-DBUILDMASTER_DATADIR=${DD_BIN}/data_d")
 _dd_expect_none("cache" "${DD_BIN}/b")
 foreach(_a IN LISTS _archives)
-	file(RENAME "${_pack}/${_a}.away" "${_pack}/${_a}")
+	if(_a STREQUAL "top_payload.tar.gz")
+		set(_source_dir top)
+	else()
+		set(_source_dir nest)
+	endif()
+	file(RENAME "${_pack}/${_source_dir}/payload.away"
+		"${_pack}/${_source_dir}/payload")
 endforeach()
 
 # ENV

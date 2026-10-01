@@ -31,5 +31,5 @@ buildmaster_component(
 	""
 	static
 	"payloadlib"
-	"FILES={URL=${PAYLOAD_URL};NAME=payload;UNPACK;TITLE=Harness payload data;EXPECTED_HASH=${PAYLOAD_HASH}}"
+	"FILES={URL=${PAYLOAD_URL};NAME=payload.tar.gz;UNPACK;TITLE=Harness payload data;EXPECTED_HASH=${PAYLOAD_HASH}}"
 )

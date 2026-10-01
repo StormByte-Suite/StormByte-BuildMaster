@@ -20,8 +20,9 @@
 ## @param[in]  max_retries Maximum attempts (default 3).
 ## @param[in]  current_try Internal try counter (default 1).
 ## @param[in]  indent_level Status indentation tabs (default 0).
+## @param[in]  output_name  Saved filename (defaults to the URL basename).
 function(_bm_file_generate_download_script out_script url title expected_hash
-										max_retries current_try indent_level)
+										max_retries current_try indent_level output_name)
 	_bm_log_message(FILE LOWLEVEL "Entering _bm_file_generate_download_script")
 	if("${title}" STREQUAL "")
 		get_filename_component(title "${url}" NAME)
@@ -38,8 +39,15 @@ function(_bm_file_generate_download_script out_script url title expected_hash
 
 	string(REPEAT "\t" ${indent_level} _FILE_INDENT)
 
-	get_filename_component(_basename "${url}" NAME)
-	_bm_file_validate_no_traversal("${_basename}")
+	if("${output_name}" STREQUAL "")
+		get_filename_component(output_name "${url}" NAME)
+	endif()
+	_bm_file_validate_no_traversal("${output_name}")
+	if("${output_name}" MATCHES "[/\\\\]")
+		_bm_log_message(FILE FATAL
+			"Download output name must be a filename: ${output_name}")
+	endif()
+	set(_basename "${output_name}")
 	set(_full_output "${BUILDMASTER_DOWNLOADSDIR}/${_basename}")
 	file(MAKE_DIRECTORY "${BUILDMASTER_DOWNLOADSDIR}")
 	file(MAKE_DIRECTORY "${BUILDMASTER_DATA_TMPDIR}")
@@ -117,7 +125,8 @@ endfunction()
 
 ## @brief Always download a file (retries + optional hash); creates a target.
 ## @param[in] name Target name (internal FILES slot id).
-## @param[in] url  URL to download (basename under BUILDMASTER_DOWNLOADSDIR).
+## @param[in] url  URL to download.
+## @param[in] OUTPUT_NAME Optional saved filename (defaults to URL basename).
 ## @param[in] TITLE         Optional human-readable title (default: URL basename).
 ## @param[in] EXPECTED_HASH Optional "ALGO=hex" or bare hex (SHA256).
 ## @param[in] MAX_RETRIES   Maximum attempts (default 3).
@@ -136,7 +145,7 @@ function(_bm_file_download name url)
 
 	cmake_parse_arguments(ARG
 		""
-		"TITLE;EXPECTED_HASH;MAX_RETRIES;COMMENT;INDENT"
+		"TITLE;EXPECTED_HASH;MAX_RETRIES;COMMENT;INDENT;OUTPUT_NAME"
 		"DEPENDS"
 		${ARGN}
 	)
@@ -148,6 +157,7 @@ function(_bm_file_download name url)
 		"${ARG_MAX_RETRIES}"
 		"1"
 		"${ARG_INDENT}"
+		"${ARG_OUTPUT_NAME}"
 	)
 
 	if(NOT ARG_COMMENT)
@@ -166,7 +176,8 @@ endfunction()
 
 ## @brief Cache-aware download; creates a target named `name`.
 ## @param[in] name Target name (internal FILES slot id).
-## @param[in] url  URL to download (basename under BUILDMASTER_DOWNLOADSDIR).
+## @param[in] url  URL to download.
+## @param[in] OUTPUT_NAME Optional saved filename (defaults to URL basename).
 ## @param[in] TITLE         Optional human-readable title (default: URL basename).
 ## @param[in] EXPECTED_HASH Optional "ALGO=hex" or bare hex (SHA256).
 ## @param[in] MAX_RETRIES   Maximum attempts (default 3).
@@ -185,7 +196,7 @@ function(_bm_file_download_cached name url)
 
 	cmake_parse_arguments(ARG
 		""
-		"TITLE;EXPECTED_HASH;MAX_RETRIES;COMMENT;INDENT"
+		"TITLE;EXPECTED_HASH;MAX_RETRIES;COMMENT;INDENT;OUTPUT_NAME"
 		"DEPENDS"
 		${ARGN}
 	)
@@ -199,6 +210,14 @@ function(_bm_file_download_cached name url)
 	if(NOT ARG_INDENT)
 		set(ARG_INDENT 0)
 	endif()
+	if("${ARG_OUTPUT_NAME}" STREQUAL "")
+		get_filename_component(ARG_OUTPUT_NAME "${url}" NAME)
+	endif()
+	_bm_file_validate_no_traversal("${ARG_OUTPUT_NAME}")
+	if("${ARG_OUTPUT_NAME}" MATCHES "[/\\\\]")
+		_bm_log_message(FILE FATAL
+			"Download output name must be a filename: ${ARG_OUTPUT_NAME}")
+	endif()
 
 	_bm_file_generate_download_script(_force_script
 		"${url}"
@@ -207,11 +226,10 @@ function(_bm_file_download_cached name url)
 		"${ARG_MAX_RETRIES}"
 		"1"
 		"${ARG_INDENT}"
+		"${ARG_OUTPUT_NAME}"
 	)
 
-	get_filename_component(_basename "${url}" NAME)
-	_bm_file_validate_no_traversal("${_basename}")
-	set(_full_output "${BUILDMASTER_DOWNLOADSDIR}/${_basename}")
+	set(_full_output "${BUILDMASTER_DOWNLOADSDIR}/${ARG_OUTPUT_NAME}")
 
 	string(REPEAT "\t" ${ARG_INDENT} _FILE_INDENT)
 	_bm_path_sanitize(_safe "${ARG_TITLE}")
@@ -219,7 +237,7 @@ function(_bm_file_download_cached name url)
 
 	set(_FILE_URL           "${url}")
 	set(_FILE_OUTPUT        "${_full_output}")
-	set(_FILE_LOCK          "${BUILDMASTER_DATA_TMPDIR}/${_basename}.lock")
+	set(_FILE_LOCK          "${BUILDMASTER_DATA_TMPDIR}/${ARG_OUTPUT_NAME}.lock")
 	set(_FILE_TITLE         "${ARG_TITLE}")
 	set(_FILE_EXPECTED_HASH "${ARG_EXPECTED_HASH}")
 	set(_FILE_MAX_RETRIES   "${ARG_MAX_RETRIES}")

@@ -236,7 +236,7 @@ endfunction()
 ## @brief Download / unpack every FILES group stored on `_id`.
 ## @param[in] _id Registered component.
 ## @note Runs at finalize, before pending detect and nested configure.
-## @note Cache file is `${BUILDMASTER_DOWNLOADSDIR}/<url-basename>`.
+## @note Cache file is `${BUILDMASTER_DOWNLOADSDIR}/<NAME>`.
 ##       Unpack: `${BUILDMASTER_BINDIR}/files/<sanitized NAME>/`.
 ## @note SOURCE group rewrites `BUILDMASTER_COMPONENT_<id>_SRCDIR`.
 ##       Other UNPACK groups append to `FILES_INCLUDES` (private `-I`).
@@ -288,7 +288,7 @@ function(_bm_comp_apply_files _id)
 			set(_title "${_ctitle} / ${_name}")
 		endif()
 		_bm_path_sanitize(_safe "${_name}")
-		get_filename_component(_base "${_url}" NAME)
+		set(_base "${_name}")
 		set(_archive "${BUILDMASTER_DOWNLOADSDIR}/${_base}")
 		set(_tgt "_bm_files_${_id}_${_safe}")
 
@@ -302,12 +302,14 @@ function(_bm_comp_apply_files _id)
 				"${_id}: FILES FORCE download ${_url} → ${_archive}")
 			_bm_file_download("${_tgt}" "${_url}"
 				${_hash_args}
+				OUTPUT_NAME "${_base}"
 				TITLE "${_title}")
 		else()
 			_bm_log_message(COMPONENT DEBUG
 				"${_id}: FILES cached download ${_url} → ${_archive}")
 			_bm_file_download_cached("${_tgt}" "${_url}"
 				${_hash_args}
+				OUTPUT_NAME "${_base}"
 				TITLE "${_title}")
 		endif()
 

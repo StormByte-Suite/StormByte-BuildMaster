@@ -29,6 +29,8 @@ If you landed here from a release link and have not read the tree:
 
 ### Fixed
 
+- **`FILES` downloads now use `NAME` as the saved filename.** URLs ending in a generic name such as `payload` no longer produce misleading cache files or collide with another archive using the same URL basename; partial files and locks follow the declared filename too.
+
 ### ToDo
 
 - [ ] **`BUILDMASTER_JOBS`.** Cap concurrent BM stage scripts (configure/build/install) independently of `ninja -jN`. Sync log lines so two oficios do not interleave. Needs a portable lock around `_bm_log_message` (Unix + Windows `.ps1` runners). Empty `COMMENT` on `add_custom_command`; banners go through log only. Not part of the link or stamp contract. It hurts more today because every parent build re-enters every stage; after the stamps, the cap only matters on a real miss.

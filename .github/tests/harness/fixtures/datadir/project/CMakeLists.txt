@@ -21,7 +21,7 @@ buildmaster_component(
 	""
 	static
 	"ddtop"
-	"FILES={URL=${DD_URL_TOP};NAME=top${_top_hash}}"
+	"FILES={URL=${DD_URL_TOP};NAME=top_payload.tar.gz${_top_hash}}"
 )
 
 # Nested BuildMaster: its FILES must use the outermost data dir.

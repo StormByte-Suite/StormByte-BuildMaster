@@ -808,6 +808,10 @@ is FATAL). `REPACK` on the executable itself is FATAL.
 Cached under `<BUILDMASTER_DATADIR>/downloads` (see
 [Data directory](#data-directory-buildmaster_datadir)). Meta + any `FILES`
 key is FATAL.
+`NAME` is the saved filename, independent of the URL path; it also names the
+per-group unpack directory when `UNPACK` is enabled. Use a distinct `NAME` for
+each archive, especially when download URLs end in a generic path such as
+`payload`.
 `GIT={…}` + FILES `SOURCE` is FATAL (two owners of the same tree).
 
 ---

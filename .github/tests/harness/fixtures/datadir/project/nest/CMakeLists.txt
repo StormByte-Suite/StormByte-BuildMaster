@@ -15,7 +15,7 @@ buildmaster_component(
 	""
 	static
 	"ddinner"
-	"FILES={URL=${DD_URL_NEST};NAME=nest;EXPECTED_HASH=SHA256=${DD_HASH_NEST}}"
+	"FILES={URL=${DD_URL_NEST};NAME=nest_payload.tar.gz;EXPECTED_HASH=SHA256=${DD_HASH_NEST}}"
 )
 
 add_library(ddnest STATIC nest.c)
