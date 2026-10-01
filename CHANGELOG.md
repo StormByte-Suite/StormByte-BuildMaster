@@ -45,7 +45,7 @@ If you landed here from a release link and have not read the tree:
 ### Changed
 
 - **Minimum CMake raised from 3.20 to 3.21.** Atomic downloads rely on `file(RENAME … RESULT)` to report a failed move; configuring with an older CMake now stops with a clear error.
-- **`BUILDMASTER_DATADIR` replaces `BUILDMASTER_DOWNLOADSDIR` as the external setting.** It names the directory for BuildMaster's own data (downloads, caches, …) and is read from `-DBUILDMASTER_DATADIR=…` first, then the `BUILDMASTER_DATADIR` environment variable, defaulting to BuildMaster's build directory. Downloads now live in `<BUILDMASTER_DATADIR>/downloads` (created if missing), which with the default is the same path as before. The `BUILDMASTER_DOWNLOADSDIR` environment variable is no longer read. Nested BuildMaster configures inherit the outermost value.
+- **`BUILDMASTER_DATADIR` replaces `BUILDMASTER_DOWNLOADSDIR` as the external setting.** It names the directory for BuildMaster's own data (downloads, caches, …) and is read from `-DBUILDMASTER_DATADIR=…` first, then the `BUILDMASTER_DATADIR` environment variable, defaulting to BuildMaster's build directory. A relative path is taken from the top-level build directory; the directory is created if missing, and configure stops with a FATAL if it cannot be created or written. Downloads now live in `<BUILDMASTER_DATADIR>/downloads` (created if missing), which with the default is the same path as before. The `BUILDMASTER_DOWNLOADSDIR` environment variable is no longer read. Nested BuildMaster configures inherit the outermost value.
 
 ### Fixed
 

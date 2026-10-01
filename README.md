@@ -1038,7 +1038,9 @@ Default OFF so independent leaves can still warm a compiler cache.
 Where BuildMaster keeps its own data: downloads, caches and similar
 state that may outlive a build tree. Set with `-DBUILDMASTER_DATADIR=…`
 or the `BUILDMASTER_DATADIR` environment variable (`-D` wins). Default:
-BuildMaster's build directory.
+BuildMaster's build directory. A relative path is taken from the top-level
+build directory. The directory is created if missing; configure stops with a
+FATAL if it cannot be created or written.
 
 | Path | Content |
 | --- | --- |

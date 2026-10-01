@@ -224,4 +224,21 @@ _dd_expect_none("-D+env" "${DD_BIN}/d")
 _dd_build("default" "${DD_BIN}/e" "${_unset}")
 _dd_expect_in("default" "${DD_BIN}/e/buildmaster")
 
+# Relative path: resolved against the top-level build dir.
+_dd_build("relative" "${DD_BIN}/r" "${_unset}" "-DBUILDMASTER_DATADIR=rel/data")
+_dd_expect_in("relative" "${DD_BIN}/r/rel/data")
+
+# A data dir that cannot be created (parent is a regular file) is FATAL.
+file(WRITE "${DD_BIN}/not_a_dir" "x\n")
+_dd_cfg_cmd(_cmd "${DD_BIN}/x" "-DBUILDMASTER_DATADIR=${DD_BIN}/not_a_dir/data")
+execute_process(COMMAND ${_cmd}
+	RESULT_VARIABLE _rc OUTPUT_VARIABLE _out ERROR_VARIABLE _out)
+if(_rc EQUAL 0)
+	message(FATAL_ERROR "datadir: uncreatable data dir: configure succeeded\n${_out}")
+endif()
+string(REGEX REPLACE "[ \t\r\n]+" " " _flat "${_out}")
+if(NOT "${_flat}" MATCHES "BUILDMASTER_DATADIR '[^']*' could not be created")
+	message(FATAL_ERROR "datadir: uncreatable data dir: failed for another reason\n${_out}")
+endif()
+
 message(STATUS "datadir: OK")

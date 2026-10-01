@@ -29,6 +29,18 @@ if(NOT BUILDMASTER_CONFIGURED)
 	else()
 		set(BUILDMASTER_DATADIR "${BUILDMASTER_BINDIR}")
 	endif()
+	get_filename_component(BUILDMASTER_DATADIR "${BUILDMASTER_DATADIR}" ABSOLUTE
+		BASE_DIR "${CMAKE_BINARY_DIR}")
+	# Probe via cmake -E so a bad path reports a BuildMaster FATAL, not a raw file() error.
+	execute_process(
+		COMMAND "${CMAKE_COMMAND}" -E make_directory
+			"${BUILDMASTER_DATADIR}/downloads" "${BUILDMASTER_DATADIR}/tmp"
+		RESULT_VARIABLE _bm_datadir_rc
+		OUTPUT_QUIET ERROR_QUIET)
+	if(NOT _bm_datadir_rc EQUAL 0 OR NOT IS_DIRECTORY "${BUILDMASTER_DATADIR}/tmp")
+		_bm_log_message(CORE FATAL
+			"BUILDMASTER_DATADIR '${BUILDMASTER_DATADIR}' could not be created or is not writable")
+	endif()
 	set(BUILDMASTER_DOWNLOADSDIR "${BUILDMASTER_DATADIR}/downloads")
 	set(BUILDMASTER_DATA_TMPDIR "${BUILDMASTER_DATADIR}/tmp")
 	set(BUILDMASTER_TOOLCHAIN_FILE "${BUILDMASTER_SCRIPTSDIR}/toolchain.cmake")
