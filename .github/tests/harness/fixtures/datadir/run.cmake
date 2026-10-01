@@ -85,12 +85,118 @@ function(_dd_expect_none _label _dir)
 	endforeach()
 endfunction()
 
+## @brief FATAL unless `_dir`/tmp exists and holds no partial download.
+function(_dd_expect_clean_tmp _label _dir)
+	if(NOT IS_DIRECTORY "${_dir}/tmp")
+		message(FATAL_ERROR "datadir: ${_label}: ${_dir}/tmp missing")
+	endif()
+	file(GLOB _parts "${_dir}/tmp/*.part")
+	if(_parts)
+		message(FATAL_ERROR "datadir: ${_label}: partial download left: ${_parts}")
+	endif()
+endfunction()
+
+## @brief Configure-only command line for `_bld` (no env, no build).
+## @param[out] _out_var Parent-scope argv list.
+function(_dd_cfg_cmd _out_var _bld)
+	set(${_out_var}
+		"${CMAKE_COMMAND}" -E env --unset=BUILDMASTER_DATADIR
+		"${CMAKE_COMMAND}" -S "${DD_SRC}" -B "${_bld}" -G "${DD_GENERATOR}"
+		"-DCMAKE_BUILD_TYPE=${DD_BUILD_TYPE}"
+		"-DCMAKE_C_COMPILER=${DD_C_COMPILER}"
+		"-DCMAKE_CXX_COMPILER=${DD_CXX_COMPILER}"
+		"-DDD_BM_ROOT=${DD_BM_ROOT}"
+		"-DDD_URL_TOP=file://${_pack_url}/top_payload.tar.gz"
+		"-DDD_HASH_TOP=${_hash_top}"
+		"-DDD_URL_NEST=file://${_pack_url}/nest_payload.tar.gz"
+		"-DDD_HASH_NEST=${_hash_nest}"
+		${ARGN}
+		PARENT_SCOPE)
+endfunction()
+
 set(_unset "--unset=BUILDMASTER_DATADIR")
 
 # -D
+
+# Failed download (hash never matches): nothing reaches downloads/.
+_dd_cfg_cmd(_cmd "${DD_BIN}/f"
+	"-DBUILDMASTER_DATADIR=${DD_BIN}/data_bad"
+	"-DDD_HASH_TOP=0000000000000000000000000000000000000000000000000000000000000000")
+execute_process(COMMAND ${_cmd}
+	RESULT_VARIABLE _rc OUTPUT_VARIABLE _out ERROR_VARIABLE _out)
+if(_rc EQUAL 0)
+	message(FATAL_ERROR "datadir: bad hash: configure succeeded\n${_out}")
+endif()
+if(NOT "${_out}" MATCHES "Hash mismatch")
+	message(FATAL_ERROR "datadir: bad hash: failed for another reason\n${_out}")
+endif()
+if(EXISTS "${DD_BIN}/data_bad/downloads/top_payload.tar.gz")
+	message(FATAL_ERROR "datadir: bad hash: rejected archive published to downloads/")
+endif()
+_dd_expect_clean_tmp("bad hash" "${DD_BIN}/data_bad")
+
+# Failed transfer without a hash must not leave a file that a later run
+# would take as a cache hit.
+file(RENAME "${_pack}/top_payload.tar.gz" "${_pack}/top_payload.tar.gz.away")
+_dd_cfg_cmd(_cmd "${DD_BIN}/g"
+	"-DBUILDMASTER_DATADIR=${DD_BIN}/data_nohash" "-DDD_HASH_TOP=NONE")
+execute_process(COMMAND ${_cmd}
+	RESULT_VARIABLE _rc OUTPUT_VARIABLE _out ERROR_VARIABLE _out)
+file(RENAME "${_pack}/top_payload.tar.gz.away" "${_pack}/top_payload.tar.gz")
+if(_rc EQUAL 0)
+	message(FATAL_ERROR "datadir: failed transfer: configure succeeded\n${_out}")
+endif()
+if(EXISTS "${DD_BIN}/data_nohash/downloads/top_payload.tar.gz")
+	message(FATAL_ERROR "datadir: failed transfer: partial archive published to downloads/")
+endif()
+_dd_expect_clean_tmp("failed transfer" "${DD_BIN}/data_nohash")
+_dd_cfg_cmd(_cmd "${DD_BIN}/g"
+	"-DBUILDMASTER_DATADIR=${DD_BIN}/data_nohash" "-DDD_HASH_TOP=NONE")
+execute_process(COMMAND ${_cmd}
+	RESULT_VARIABLE _rc OUTPUT_VARIABLE _out ERROR_VARIABLE _out)
+if(NOT _rc EQUAL 0)
+	message(FATAL_ERROR "datadir: retry after failed transfer failed\n${_out}")
+endif()
+file(SHA256 "${DD_BIN}/data_nohash/downloads/top_payload.tar.gz" _got)
+if(NOT _got STREQUAL _hash_top)
+	message(FATAL_ERROR "datadir: retry after failed transfer kept a bad archive")
+endif()
+
+# Two configures racing on one fresh data dir.
+_dd_cfg_cmd(_cmd1 "${DD_BIN}/p1" "-DBUILDMASTER_DATADIR=${DD_BIN}/data_par")
+_dd_cfg_cmd(_cmd2 "${DD_BIN}/p2" "-DBUILDMASTER_DATADIR=${DD_BIN}/data_par")
+# Piped COMMANDs run concurrently; the first logs to a file so it never
+# blocks on a pipe the second does not read.
+file(WRITE "${DD_BIN}/p1.cmake"
+"set(_c [==[${_cmd1}]==])
+execute_process(COMMAND \${_c} RESULT_VARIABLE _rc
+	OUTPUT_FILE [==[${DD_BIN}/p1.log]==] ERROR_FILE [==[${DD_BIN}/p1.log]==])
+if(NOT _rc EQUAL 0)
+	message(FATAL_ERROR \"p1 configure failed (\${_rc}), see ${DD_BIN}/p1.log\")
+endif()
+")
+execute_process(
+	COMMAND "${CMAKE_COMMAND}" -P "${DD_BIN}/p1.cmake"
+	COMMAND ${_cmd2}
+	RESULTS_VARIABLE _rcs OUTPUT_VARIABLE _out ERROR_VARIABLE _out)
+foreach(_rc IN LISTS _rcs)
+	if(NOT _rc EQUAL 0)
+		message(FATAL_ERROR "datadir: parallel: configure failed (${_rcs})\n${_out}")
+	endif()
+endforeach()
+_dd_expect_in("parallel" "${DD_BIN}/data_par")
+_dd_expect_clean_tmp("parallel" "${DD_BIN}/data_par")
+foreach(_a IN LISTS _archives)
+	file(SHA256 "${DD_BIN}/data_par/downloads/${_a}" _got)
+	file(SHA256 "${_pack}/${_a}" _want)
+	if(NOT _got STREQUAL _want)
+		message(FATAL_ERROR "datadir: parallel: ${_a} corrupted")
+	endif()
+endforeach()
 _dd_build("-D" "${DD_BIN}/a" "${_unset}" "-DBUILDMASTER_DATADIR=${DD_BIN}/data_d")
 _dd_expect_in("-D" "${DD_BIN}/data_d")
 _dd_expect_none("-D" "${DD_BIN}/a")
+_dd_expect_clean_tmp("-D" "${DD_BIN}/data_d")
 
 # Fresh build dir, same data dir, sources gone: must hit the cache.
 foreach(_a IN LISTS _archives)

@@ -9,6 +9,11 @@ endforeach()
 add_subdirectory("${DD_BM_ROOT}" "${CMAKE_BINARY_DIR}/buildmaster")
 include("${DD_BM_ROOT}/helpers.cmake")
 
+set(_top_hash ";EXPECTED_HASH=SHA256=${DD_HASH_TOP}")
+if(DD_HASH_TOP STREQUAL "NONE")
+	set(_top_hash "")
+endif()
+
 buildmaster_component(
 	dd-top
 	"Harness datadir top"
@@ -16,7 +21,7 @@ buildmaster_component(
 	""
 	static
 	"ddtop"
-	"FILES={URL=${DD_URL_TOP};NAME=top;EXPECTED_HASH=SHA256=${DD_HASH_TOP}}"
+	"FILES={URL=${DD_URL_TOP};NAME=top${_top_hash}}"
 )
 
 # Nested BuildMaster: its FILES must use the outermost data dir.

@@ -7,6 +7,9 @@
 # On a failed transfer CMake would otherwise emit:
 #   "file DOWNLOAD cannot compute hash on failed download"
 # Hash is verified only after STATUS reports success.
+# The transfer goes to <datadir>/tmp/<name>.part under <name>.lock and is
+# renamed into downloads/ only once complete (and hash-checked), so a
+# shared data dir never exposes a partial archive.
 # Runs under `cmake -P`: parent functions are not visible unless loaded here.
 #
 # Progress / retry / result lines use `_bm_log_message(FILE STATUS …)`.
@@ -22,6 +25,8 @@ _bm_log_message(FILE LOWLEVEL "Entering buildmaster_download script")
 
 set(_url            "@_FILE_URL@")
 set(_output         "@_FILE_OUTPUT@")
+set(_part           "@_FILE_PART@")
+set(_lock           "@_FILE_LOCK@")
 set(_title          "@_FILE_TITLE@")
 set(_expected_hash  "@_FILE_EXPECTED_HASH@")
 set(_max_retries    "@_FILE_MAX_RETRIES@")
@@ -41,6 +46,18 @@ _bm_log_message(FILE LOWLEVEL "url=${_url}")
 _bm_log_message(FILE LOWLEVEL "output=${_output}")
 _bm_log_message(FILE LOWLEVEL "expected_hash=${_expected_hash}")
 _bm_log_message(FILE LOWLEVEL "max_retries=${_max_retries} current_try=${_current_try}")
+
+# The cached wrapper already holds the lock when it includes this script.
+if(NOT _bm_dl_locked)
+	get_filename_component(_lock_dir "${_lock}" DIRECTORY)
+	file(MAKE_DIRECTORY "${_lock_dir}")
+	file(LOCK "${_lock}" GUARD PROCESS TIMEOUT 3600 RESULT_VARIABLE _lock_rc)
+	if(NOT _lock_rc EQUAL 0)
+		_bm_log_message(FILE FATAL "Could not lock ${_lock}: ${_lock_rc}" ${_indent_n})
+	endif()
+	set(_bm_dl_locked TRUE)
+endif()
+file(REMOVE "${_part}")
 
 # ---------------------------------------------------------------------------
 # Local helpers
@@ -87,7 +104,7 @@ endfunction()
 _bm_log_message(FILE LOWLEVEL "file(DOWNLOAD) attempt ${_current_try}/${_max_retries}")
 file(DOWNLOAD
 	"${_url}"
-	"${_output}"
+	"${_part}"
 	STATUS _status
 	LOG _log
 	TIMEOUT 120
@@ -104,6 +121,7 @@ _bm_log_message(FILE LOWLEVEL "file(DOWNLOAD) status code=${_code} msg=${_msg}")
 while(NOT _code EQUAL 0)
 	_bm_file_dl_is_permanent_error(_permanent "${_msg}")
 	if(_permanent OR _current_try GREATER_EQUAL _max_retries)
+		file(REMOVE "${_part}")
 		_bm_log_message(FILE FATAL "Download failed for ${_title}: ${_msg}" ${_indent_n})
 	endif()
 
@@ -123,7 +141,7 @@ while(NOT _code EQUAL 0)
 	_bm_log_message(FILE LOWLEVEL "file(DOWNLOAD) attempt ${_current_try}/${_max_retries}")
 	file(DOWNLOAD
 		"${_url}"
-		"${_output}"
+		"${_part}"
 		STATUS _status
 		LOG _log
 		TIMEOUT 120
@@ -139,10 +157,10 @@ endwhile()
 # ---------------------------------------------------------------------------
 if(NOT "${_expected_hash}" STREQUAL "")
 	_bm_log_message(FILE LOWLEVEL "Verifying downloaded file hash")
-	_bm_file_dl_checksum_ok(_hash_ok "${_output}" "${_expected_hash}")
+	_bm_file_dl_checksum_ok(_hash_ok "${_part}" "${_expected_hash}")
 	while(NOT _hash_ok)
 		if(_current_try GREATER_EQUAL _max_retries)
-			file(REMOVE "${_output}")
+			file(REMOVE "${_part}")
 			_bm_log_message(FILE FATAL
 				"Hash mismatch for ${_title} after ${_max_retries} attempt(s)" ${_indent_n})
 		endif()
@@ -151,7 +169,7 @@ if(NOT "${_expected_hash}" STREQUAL "")
 			"Downloading ${_title}... ERROR: Hash mismatch, retrying (${_current_try}/${_max_retries})"
 			${_indent_n})
 		_bm_log_message(FILE DEBUG "Hash mismatch for ${_title}, retrying (${_current_try}/${_max_retries})")
-		file(REMOVE "${_output}")
+		file(REMOVE "${_part}")
 
 		math(EXPR _wait_secs "5 * ${_current_try}")
 		_bm_log_message(FILE STATUS
@@ -164,7 +182,7 @@ if(NOT "${_expected_hash}" STREQUAL "")
 		_bm_log_message(FILE LOWLEVEL "file(DOWNLOAD) attempt ${_current_try}/${_max_retries}")
 		file(DOWNLOAD
 			"${_url}"
-			"${_output}"
+			"${_part}"
 			STATUS _status
 			LOG _log
 			TIMEOUT 120
@@ -177,16 +195,21 @@ if(NOT "${_expected_hash}" STREQUAL "")
 		if(NOT _code EQUAL 0)
 			_bm_file_dl_is_permanent_error(_permanent "${_msg}")
 			if(_permanent OR _current_try GREATER_EQUAL _max_retries)
+				file(REMOVE "${_part}")
 				_bm_log_message(FILE FATAL "Download failed for ${_title}: ${_msg}" ${_indent_n})
 			endif()
-			file(REMOVE "${_output}")
+			file(REMOVE "${_part}")
 			set(_hash_ok FALSE)
 		else()
-			_bm_file_dl_checksum_ok(_hash_ok "${_output}" "${_expected_hash}")
+			_bm_file_dl_checksum_ok(_hash_ok "${_part}" "${_expected_hash}")
 		endif()
 	endwhile()
 	_bm_log_message(FILE DEBUG "Hash OK for ${_title}")
 endif()
+
+get_filename_component(_output_dir "${_output}" DIRECTORY)
+file(MAKE_DIRECTORY "${_output_dir}")
+file(RENAME "${_part}" "${_output}")
 
 _bm_log_message(FILE STATUS "Downloading ${_title}... OK" ${_indent_n})
 _bm_log_message(FILE LOWLEVEL "Exiting buildmaster_download script")

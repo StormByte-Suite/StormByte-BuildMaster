@@ -1043,6 +1043,12 @@ BuildMaster's build directory.
 | Path | Content |
 | --- | --- |
 | `<BUILDMASTER_DATADIR>/downloads` | `FILES={…}` archives (created if missing) |
+| `<BUILDMASTER_DATADIR>/tmp` | Work area: in-progress downloads and their locks |
+
+A download is written to `tmp/` and moved into `downloads/` only once it
+is complete and its hash matches, so an interrupted or failed transfer
+never looks like a cached archive. Builds sharing the data dir wait for
+each other on the same archive instead of downloading it twice.
 
 Point it outside the build tree to keep downloads across `rm -rf build`.
 Nested BuildMaster configures inherit the outermost value.

@@ -31,6 +31,8 @@ If you landed here from a release link and have not read the tree:
 
 ### Fixed
 
+- **Downloads are published atomically.** `FILES={…}` archives were written straight into the downloads directory, so an interrupted or failed transfer could leave a truncated file that a later run (without `EXPECTED_HASH`) took as a cache hit, and two builds sharing the directory could write the same archive at once. Transfers now go to `<BUILDMASTER_DATADIR>/tmp/<name>.part` under a per-archive lock (`<name>.lock`) and are renamed into `downloads/` only after they complete and pass the hash check. The cache check runs under the same lock, so a build waiting on another one's download reuses it.
+
 - **Changing a component's mode or ABI on an existing build dir now reconfigures it.** The stage stamp missed, but the nested configure only ran when the build tree was absent, so a component switched from `static` to `shared` (or built with different flags) kept its previous configure. Each nested tree now records the non-tree key it was configured with (`bm-stamp.configured`); a mismatch discards the nested CMake cache / Meson setup and configures again. The key now also covers the ABI inputs: C++ compiler, C/C++ flags (including per-build-type), linker flags, linker, MSVC runtime, C/C++ standard, sysroot and macOS architectures/deployment target. Build trees from earlier versions reconfigure once.
 
 ### ToDo

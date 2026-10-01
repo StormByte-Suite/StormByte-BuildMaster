@@ -3,6 +3,8 @@
 # Runs under `cmake -P`: parent functions are not visible unless loaded here.
 # Cache-hit / miss progress uses `_bm_log_message(FILE STATUS …)`.
 # On miss the force script emits the same STATUS line for the real download.
+# The check runs under <datadir>/tmp/<name>.lock: a build waiting on another
+# one downloading the same archive into a shared data dir sees a cache hit.
 
 include("@BUILDMASTER_SRCDIR@/log.cmake")
 if(COMMAND _bm_log_level_init)
@@ -14,6 +16,7 @@ _bm_log_message(FILE LOWLEVEL "Entering buildmaster_download_cached script")
 
 set(_url           "@_FILE_URL@")
 set(_output        "@_FILE_OUTPUT@")
+set(_lock          "@_FILE_LOCK@")
 set(_title         "@_FILE_TITLE@")
 set(_expected_hash "@_FILE_EXPECTED_HASH@")
 set(_force_script  "@_FILE_FORCE_SCRIPT@")
@@ -32,6 +35,14 @@ _bm_log_message(FILE LOWLEVEL "url=${_url}")
 _bm_log_message(FILE LOWLEVEL "output=${_output}")
 _bm_log_message(FILE LOWLEVEL "expected_hash=${_expected_hash}")
 _bm_log_message(FILE LOWLEVEL "force_script=${_force_script}")
+
+get_filename_component(_lock_dir "${_lock}" DIRECTORY)
+file(MAKE_DIRECTORY "${_lock_dir}")
+file(LOCK "${_lock}" GUARD PROCESS TIMEOUT 3600 RESULT_VARIABLE _lock_rc)
+if(NOT _lock_rc EQUAL 0)
+	_bm_log_message(FILE FATAL "Could not lock ${_lock}: ${_lock_rc}" ${_indent_n})
+endif()
+set(_bm_dl_locked TRUE)
 
 if(EXISTS "${_output}")
 	_bm_log_message(FILE LOWLEVEL "Cache file exists: ${_output}")

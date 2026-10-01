@@ -42,12 +42,15 @@ function(_bm_file_generate_download_script out_script url title expected_hash
 	_bm_file_validate_no_traversal("${_basename}")
 	set(_full_output "${BUILDMASTER_DOWNLOADSDIR}/${_basename}")
 	file(MAKE_DIRECTORY "${BUILDMASTER_DOWNLOADSDIR}")
+	file(MAKE_DIRECTORY "${BUILDMASTER_DATA_TMPDIR}")
 
 	_bm_path_sanitize(_safe "${title}")
 	set(_script "${BUILDMASTER_SCRIPTS_FILE_DIR}/buildmaster_download_${_safe}.cmake")
 
 	set(_FILE_URL           "${url}")
 	set(_FILE_OUTPUT        "${_full_output}")
+	set(_FILE_PART          "${BUILDMASTER_DATA_TMPDIR}/${_basename}.part")
+	set(_FILE_LOCK          "${BUILDMASTER_DATA_TMPDIR}/${_basename}.lock")
 	set(_FILE_TITLE         "${title}")
 	set(_FILE_EXPECTED_HASH "${expected_hash}")
 	set(_FILE_MAX_RETRIES   "${max_retries}")
@@ -216,6 +219,7 @@ function(_bm_file_download_cached name url)
 
 	set(_FILE_URL           "${url}")
 	set(_FILE_OUTPUT        "${_full_output}")
+	set(_FILE_LOCK          "${BUILDMASTER_DATA_TMPDIR}/${_basename}.lock")
 	set(_FILE_TITLE         "${ARG_TITLE}")
 	set(_FILE_EXPECTED_HASH "${ARG_EXPECTED_HASH}")
 	set(_FILE_MAX_RETRIES   "${ARG_MAX_RETRIES}")
