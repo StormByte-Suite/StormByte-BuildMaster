@@ -109,7 +109,7 @@ set(BUILDMASTER_VERSION "${_BM_PIN_VERSION}" CACHE INTERNAL
 	"Trunk BuildMaster version")
 
 _bm_log_message(CORE STATUS
-	"Bootstrapping StormByte-BuildMaster ${BUILDMASTER_VERSION} (https://github.com/StormBytePP/StormByte-BuildMaster)")
+	"Bootstrapping StormByte-BuildMaster ${BUILDMASTER_VERSION} (https://github.com/StormByte-Suite/StormByte-BuildMaster)")
 
 # -----------------------------------------------------------------------------
 # 2. Helper functions (utilities + module helpers; loads toolchain export API)

@@ -32,7 +32,7 @@ Do not paste changelog bullets.
 | CMake 3.20 | CMake ≥ 3.21 (`cmake_minimum_required(VERSION 3.21)` in the caller) |
 | `BUILDMASTER_DOWNLOADSDIR=/cache` (env) | `BUILDMASTER_DATADIR=/data` (env or `-D`); downloads land in `/data/downloads` |
 
-[Unreleased]: https://github.com/StormBytePP/StormByte-BuildMaster/compare/2.0.0...HEAD
+[Unreleased]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/2.0.0...HEAD
 
 ---
 
@@ -321,7 +321,7 @@ Do not `include(helpers.cmake)`.
 
 ---
 
-[1.0.1 → 2.0.0]: https://github.com/StormBytePP/StormByte-BuildMaster/compare/1.0.1...HEAD
+[1.0.1 → 2.0.0]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/1.0.1...HEAD
 
 ### How to maintain this file
 

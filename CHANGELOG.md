@@ -17,9 +17,9 @@ The public surface is ten commands on purpose; everything else is internal.
 
 If you landed here from a release link and have not read the tree:
 
-- How to write a component, every optstr key, and the contract: [README.md](https://github.com/StormBytePP/StormByte-BuildMaster/blob/master/README.md)
-- The ten names, and nothing else: [public_functions.md](https://github.com/StormBytePP/StormByte-BuildMaster/blob/master/public_functions.md)
-- Porting an older caller: [MIGRATE.md](https://github.com/StormBytePP/StormByte-BuildMaster/blob/master/MIGRATE.md)
+- How to write a component, every optstr key, and the contract: [README.md](https://github.com/StormByte-Suite/StormByte-BuildMaster/blob/master/README.md)
+- The ten names, and nothing else: [public_functions.md](https://github.com/StormByte-Suite/StormByte-BuildMaster/blob/master/public_functions.md)
+- Porting an older caller: [MIGRATE.md](https://github.com/StormByte-Suite/StormByte-BuildMaster/blob/master/MIGRATE.md)
 
 ## [Unreleased]
 
@@ -38,7 +38,7 @@ If you landed here from a release link and have not read the tree:
 - [ ] **Install-tree cache (2.1).** A component may restore its installed prefix from a blob instead of compile+install. Staging prefix per id, then an atomic copy into `BUILDMASTER_INSTALL_DIR` (same layout as a live install: libs, headers, `*Config.cmake`, `.pc`). Not a builddir cache (ccache/sccache already cover objects). A HIT is "the stamp is already current": restore, touch `_configure` / `_build` / `_install`, do not enter the nested build, do not re-apply PATCH. A MISS runs the stamp command (PATCH, build, post oficios, write the blob, `RESET`). The blob is the prefix after those oficios, including the `.pc` rewrite, not the nested builddir. A HIT must not leave a `build.ninja` that was generated against the patched tree; the next real MISS would rescan the reset `CMakeLists.txt`. The key is computed without mutating the worktree, because the steady state is a clean tree after `RESET`: pin, patch-file bytes, normalized options, toolchain profile, `CMAKE_BUILD_TYPE`, IPO on/off, `mode`, `produced`, host OS/arch. The unpatched pin alone is not enough. `CACHEKEY=` / `CACHE={…}` is extra salt, not the only way to tell `-Dlibx265=enabled` from disabled. Leaving options out of the default key is a silent wrong HIT once stamps stop the rescan. `NOINSTALL` never writes. `REPACK` caches the publisher archive, not each member, unless that member is itself cached. A partial HIT (lib without `Config.cmake`) is FATAL, not a fallback. Blocked on the idempotent stamps. The skip-configure wait is in: a consumer that did not configure the id still waits on the winner's `_install` (or on `<id>_install` when that stage is in this process). A restore that re-enters the nested build still races. The stamp already writes `bm-stamp.key` (`tree` + `extra` sha256) and `bm-stamp.extra` (the non-tree inputs) for that key. A cache HIT is still not implemented.
 - [ ] **RENAME should rewrite installed `.pc` files to the produced stem.** `RENAME` already moves `libfoo-static.a` / `jpeg-static.lib` / `libpng16.a` to the `produced` name. The matching `*.pc` (`Libs: -lpng16`, `-ljpeg`, `-ltesseract55`) is left untouched, so Meson/`pkg-config --static --libs` still looks for the pre-rename artifact. Consumers fail with LNK1104 / "library not found" even though the archive exists under the produced stem. After renaming an archive, scan `${BUILDMASTER_INSTALL_DIR}/**/pkgconfig/*.pc` (or the component's own `.pc`) and rewrite `-l<old-stem>` (and `Name:` when it is only the old stem) to `-l<produced>`. Do not invent new `.pc` files. This is a post-install oficio: the `_install` stamp does not close, and the cache blob is not written, until the `.pc` matches the produced stem. Shared-library sonames and CMake `*Config.cmake` / `*Targets.cmake` stay a separate ticket (`find_package` paths vs `pkg-config`).
 
-[Unreleased]: https://github.com/StormBytePP/StormByte-BuildMaster/compare/2.0.3...HEAD
+[Unreleased]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/2.0.3...HEAD
 
 ## [2.0.3] - 2026-10-01
 
@@ -52,7 +52,7 @@ If you landed here from a release link and have not read the tree:
 - **Downloads are published atomically.** `FILES={…}` archives were written straight into the downloads directory, so an interrupted or failed transfer could leave a truncated file that a later run (without `EXPECTED_HASH`) took as a cache hit, and two builds sharing the directory could write the same archive at once. Transfers now go to `<BUILDMASTER_DATADIR>/tmp/<name>.part` under a per-archive lock (`<name>.lock`) and are renamed into `downloads/` only after they complete and pass the hash check. The cache check runs under the same lock, so a build waiting on another one's download reuses it.
 - **Changing a component's mode or ABI on an existing build dir now reconfigures it.** The stage stamp missed, but the nested configure only ran when the build tree was absent, so a component switched from `static` to `shared` (or built with different flags) kept its previous configure. Each nested tree now records the non-tree key it was configured with (`bm-stamp.configured`); a mismatch discards the nested CMake cache / Meson setup and configures again. The key now also covers the ABI inputs: C++ compiler, C/C++ flags (including per-build-type), linker flags, linker, MSVC runtime, C/C++ standard, sysroot and macOS architectures/deployment target. Build trees from earlier versions reconfigure once.
 
-[2.0.3]: https://github.com/StormBytePP/StormByte-BuildMaster/compare/2.0.2...2.0.3
+[2.0.3]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/2.0.2...2.0.3
 
 ## [2.0.2] - 2026-09-29
 
@@ -65,7 +65,7 @@ If you landed here from a release link and have not read the tree:
 - **A parent no longer rewrites the links file its nested project wrote for the same id.** When a `cmake` component's nested BuildMaster project declares that same id (for example with `BACKEND=host`), both processes wrote `links/<id>.cmake` with different content. The parent rewrite made the nested `build.ninja` stale, and the next build re-ran CMake in the nested project and then in the parent. Links files now record their writer's binary dir (`_BM_LINKS_WRITER`); the parent keeps a file written from the component's own build dir unless it adds dests.
 - **List values in the toolchain dump stay on one line.** `_bm_tc_export` / `_bm_tc_export_raw` stored each line in a CMake list property, so a value containing `;` (for example `BUILDMASTER_KNOWN_TOOLCHAINS`) was split into one line per item. Nested configures then cached a multi-line value and warned `Value of BUILDMASTER_KNOWN_TOOLCHAINS contained a newline; truncating`. Semicolons are now escaped in the property and the dump writes `set(X "a;b")`.
 
-[2.0.2]: https://github.com/StormBytePP/StormByte-BuildMaster/compare/2.0.1...2.0.2
+[2.0.2]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/2.0.1...2.0.2
 
 ## [2.0.1] - 2026-09-27
 
@@ -79,7 +79,7 @@ If you landed here from a release link and have not read the tree:
 - **Transitive `buildmaster_link` stopped at one recorded hop.** `buildmaster_link(A B)` still names only B. `_bm_links_write_one` now unions this process's link edges with `LINKS_ATTACHED` and the dests already stored in `links/<id>.cmake`, then walks those ids to a fixpoint (seen-set, cycle cut). A parent rewrite no longer replaces `links/StormByte-String.cmake` with the edges it knows and drops String → Base. A later configure that skips the winner still flattens `-l` / `Stem.lib` for the whole chain (`--no-allow-shlib-undefined`, Apple `-undefined,error`; Windows already fails unresolved). The caller does not name grandparents. Fixture `links-transitive`: shared TransBase ← TransMid ← TransUpper, and deferred TransLeaf links only TransUpper after the skip, while calling a Base-only symbol.
 - **`WHOLE` wrap was empty on ELF.** `_bm_opt_whole_items` built `-Wl,--whole-archive` + produced `.a` + `-Wl,--no-whole-archive`, then `fragment.cmake` flattened the CMake list to spaces and `target_link_libraries(<id> INTERFACE …)` let CMake classify the `-Wl` tokens as *flags* and the archives as *libraries*. The DSO line became `libavutil.a … libavfilter.a -Wl,--whole-archive -Wl,--no-whole-archive`. GNU ld.bfd (single pass) then dropped unreferenced avutil objects (`av_md5_sum`, AES/HMAC, …) while lld still linked. ELF now emits one `$<LINK_GROUP:BM_WHOLE,…>` and registers `CMAKE_{,C_,CXX_}LINK_GROUP_USING_BM_WHOLE` (prefix / suffix `--whole-archive` / `--no-whole-archive`) so every produced static of that id stays inside the wrap. Apple (`-force_load`) and MSVC (`-WHOLEARCHIVE:`) are unchanged. The fragment no longer replaces `;` with spaces. `WHOLE` still means one region around **all** produced archives of the id, not one wrap per file.
 
-[2.0.1]: https://github.com/StormBytePP/StormByte-BuildMaster/compare/2.0.0...2.0.1
+[2.0.1]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/2.0.0...2.0.1
 
 ## [2.0.0] - 2026-09-04
 
@@ -432,7 +432,7 @@ What 1.0.1 already did internally (headers mode, per-component toolchains, neste
   Fat becomes `on`.
   One STATUS per configure.
 
-[2.0.0]: https://github.com/StormBytePP/StormByte-BuildMaster/releases/tag/2.0.0
+[2.0.0]: https://github.com/StormByte-Suite/StormByte-BuildMaster/releases/tag/2.0.0
 
 ## [1.0.1] - 2026-08-26
 
@@ -507,7 +507,7 @@ What 1.0.1 already did internally (headers mode, per-component toolchains, neste
   override no longer bootstraps a second install tree under the
   component build dir. Harness fixture `tc-prefix` locks the dump.
 
-[1.0.1]: https://github.com/StormBytePP/StormByte-BuildMaster/releases/tag/1.0.1
+[1.0.1]: https://github.com/StormByte-Suite/StormByte-BuildMaster/releases/tag/1.0.1
 
 ## [1.0.0] - 2026-08-21
 
@@ -598,4 +598,4 @@ Initial public release of **StormByte-BuildMaster**: a CMake DSL to configure, b
 - Stage scripts are generated at parent configure time — change `BUILDMASTER_DEBUG` / `BUILDMASTER_VERBOSE` / `BUILDMASTER_FAIL_FAST` / `BUILDMASTER_CLEAN_RESET_REPOS` and re-run CMake to regenerate them.
 - Designed as a building block for multi-dependency projects (e.g. FFmpeg plugin graphs, multi-bitdepth codecs, database client bundles).
 
-[1.0.0]: https://github.com/StormBytePP/StormByte-BuildMaster/releases/tag/1.0.0
+[1.0.0]: https://github.com/StormByte-Suite/StormByte-BuildMaster/releases/tag/1.0.0

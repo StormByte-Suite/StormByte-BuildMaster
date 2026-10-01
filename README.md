@@ -1,6 +1,6 @@
 # StormByte BuildMaster
 
-[![CI](https://github.com/StormBytePP/StormByte-BuildMaster/actions/workflows/ci.yml/badge.svg)](https://github.com/StormBytePP/StormByte-BuildMaster/actions/workflows/ci.yml)
+[![CI](https://github.com/StormByte-Suite/StormByte-BuildMaster/actions/workflows/ci.yml/badge.svg)](https://github.com/StormByte-Suite/StormByte-BuildMaster/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CMake ≥ 3.21](https://img.shields.io/badge/CMake-%E2%89%A5%203.21-064F8C)](https://cmake.org/)
 [![CMake · Meson](https://img.shields.io/badge/backends-CMake%20%7C%20Meson-orange)](#how-a-component-works)
