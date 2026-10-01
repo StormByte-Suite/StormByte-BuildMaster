@@ -40,7 +40,7 @@ If you landed here from a release link and have not read the tree:
 
 [Unreleased]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/2.0.3...HEAD
 
-## [2.0.3] - 2026-10-01
+## [2.0.3] - 2026-10-02
 
 ### Changed
 
