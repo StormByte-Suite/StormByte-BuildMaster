@@ -27,15 +27,7 @@ If you landed here from a release link and have not read the tree:
 
 ### Changed
 
-- **Minimum CMake raised from 3.20 to 3.21.** Atomic downloads rely on `file(RENAME … RESULT)` to report a failed move; configuring with an older CMake now stops with a clear error.
-
-- **`BUILDMASTER_DATADIR` replaces `BUILDMASTER_DOWNLOADSDIR` as the external setting.** It names the directory for BuildMaster's own data (downloads, caches, …) and is read from `-DBUILDMASTER_DATADIR=…` first, then the `BUILDMASTER_DATADIR` environment variable, defaulting to BuildMaster's build directory. Downloads now live in `<BUILDMASTER_DATADIR>/downloads` (created if missing), which with the default is the same path as before. The `BUILDMASTER_DOWNLOADSDIR` environment variable is no longer read. Nested BuildMaster configures inherit the outermost value.
-
 ### Fixed
-
-- **Downloads are published atomically.** `FILES={…}` archives were written straight into the downloads directory, so an interrupted or failed transfer could leave a truncated file that a later run (without `EXPECTED_HASH`) took as a cache hit, and two builds sharing the directory could write the same archive at once. Transfers now go to `<BUILDMASTER_DATADIR>/tmp/<name>.part` under a per-archive lock (`<name>.lock`) and are renamed into `downloads/` only after they complete and pass the hash check. The cache check runs under the same lock, so a build waiting on another one's download reuses it.
-
-- **Changing a component's mode or ABI on an existing build dir now reconfigures it.** The stage stamp missed, but the nested configure only ran when the build tree was absent, so a component switched from `static` to `shared` (or built with different flags) kept its previous configure. Each nested tree now records the non-tree key it was configured with (`bm-stamp.configured`); a mismatch discards the nested CMake cache / Meson setup and configures again. The key now also covers the ABI inputs: C++ compiler, C/C++ flags (including per-build-type), linker flags, linker, MSVC runtime, C/C++ standard, sysroot and macOS architectures/deployment target. Build trees from earlier versions reconfigure once.
 
 ### ToDo
 
@@ -46,7 +38,21 @@ If you landed here from a release link and have not read the tree:
 - [ ] **Install-tree cache (2.1).** A component may restore its installed prefix from a blob instead of compile+install. Staging prefix per id, then an atomic copy into `BUILDMASTER_INSTALL_DIR` (same layout as a live install: libs, headers, `*Config.cmake`, `.pc`). Not a builddir cache (ccache/sccache already cover objects). A HIT is "the stamp is already current": restore, touch `_configure` / `_build` / `_install`, do not enter the nested build, do not re-apply PATCH. A MISS runs the stamp command (PATCH, build, post oficios, write the blob, `RESET`). The blob is the prefix after those oficios, including the `.pc` rewrite, not the nested builddir. A HIT must not leave a `build.ninja` that was generated against the patched tree; the next real MISS would rescan the reset `CMakeLists.txt`. The key is computed without mutating the worktree, because the steady state is a clean tree after `RESET`: pin, patch-file bytes, normalized options, toolchain profile, `CMAKE_BUILD_TYPE`, IPO on/off, `mode`, `produced`, host OS/arch. The unpatched pin alone is not enough. `CACHEKEY=` / `CACHE={…}` is extra salt, not the only way to tell `-Dlibx265=enabled` from disabled. Leaving options out of the default key is a silent wrong HIT once stamps stop the rescan. `NOINSTALL` never writes. `REPACK` caches the publisher archive, not each member, unless that member is itself cached. A partial HIT (lib without `Config.cmake`) is FATAL, not a fallback. Blocked on the idempotent stamps. The skip-configure wait is in: a consumer that did not configure the id still waits on the winner's `_install` (or on `<id>_install` when that stage is in this process). A restore that re-enters the nested build still races. The stamp already writes `bm-stamp.key` (`tree` + `extra` sha256) and `bm-stamp.extra` (the non-tree inputs) for that key. A cache HIT is still not implemented.
 - [ ] **RENAME should rewrite installed `.pc` files to the produced stem.** `RENAME` already moves `libfoo-static.a` / `jpeg-static.lib` / `libpng16.a` to the `produced` name. The matching `*.pc` (`Libs: -lpng16`, `-ljpeg`, `-ltesseract55`) is left untouched, so Meson/`pkg-config --static --libs` still looks for the pre-rename artifact. Consumers fail with LNK1104 / "library not found" even though the archive exists under the produced stem. After renaming an archive, scan `${BUILDMASTER_INSTALL_DIR}/**/pkgconfig/*.pc` (or the component's own `.pc`) and rewrite `-l<old-stem>` (and `Name:` when it is only the old stem) to `-l<produced>`. Do not invent new `.pc` files. This is a post-install oficio: the `_install` stamp does not close, and the cache blob is not written, until the `.pc` matches the produced stem. Shared-library sonames and CMake `*Config.cmake` / `*Targets.cmake` stay a separate ticket (`find_package` paths vs `pkg-config`).
 
-[Unreleased]: https://github.com/StormBytePP/StormByte-BuildMaster/compare/2.0.2...HEAD
+[Unreleased]: https://github.com/StormBytePP/StormByte-BuildMaster/compare/2.0.3...HEAD
+
+## [2.0.3] - 2026-10-01
+
+### Changed
+
+- **Minimum CMake raised from 3.20 to 3.21.** Atomic downloads rely on `file(RENAME … RESULT)` to report a failed move; configuring with an older CMake now stops with a clear error.
+- **`BUILDMASTER_DATADIR` replaces `BUILDMASTER_DOWNLOADSDIR` as the external setting.** It names the directory for BuildMaster's own data (downloads, caches, …) and is read from `-DBUILDMASTER_DATADIR=…` first, then the `BUILDMASTER_DATADIR` environment variable, defaulting to BuildMaster's build directory. Downloads now live in `<BUILDMASTER_DATADIR>/downloads` (created if missing), which with the default is the same path as before. The `BUILDMASTER_DOWNLOADSDIR` environment variable is no longer read. Nested BuildMaster configures inherit the outermost value.
+
+### Fixed
+
+- **Downloads are published atomically.** `FILES={…}` archives were written straight into the downloads directory, so an interrupted or failed transfer could leave a truncated file that a later run (without `EXPECTED_HASH`) took as a cache hit, and two builds sharing the directory could write the same archive at once. Transfers now go to `<BUILDMASTER_DATADIR>/tmp/<name>.part` under a per-archive lock (`<name>.lock`) and are renamed into `downloads/` only after they complete and pass the hash check. The cache check runs under the same lock, so a build waiting on another one's download reuses it.
+- **Changing a component's mode or ABI on an existing build dir now reconfigures it.** The stage stamp missed, but the nested configure only ran when the build tree was absent, so a component switched from `static` to `shared` (or built with different flags) kept its previous configure. Each nested tree now records the non-tree key it was configured with (`bm-stamp.configured`); a mismatch discards the nested CMake cache / Meson setup and configures again. The key now also covers the ABI inputs: C++ compiler, C/C++ flags (including per-build-type), linker flags, linker, MSVC runtime, C/C++ standard, sysroot and macOS architectures/deployment target. Build trees from earlier versions reconfigure once.
+
+[2.0.3]: https://github.com/StormBytePP/StormByte-BuildMaster/compare/2.0.2...2.0.3
 
 ## [2.0.2] - 2026-09-29
 
