@@ -63,6 +63,7 @@ add_subdirectory(hooks)
 add_subdirectory(hooks-stamp)
 add_subdirectory(late-link)
 add_subdirectory(link-raw)
+add_subdirectory(mode-switch)
 add_subdirectory(omit-builddir)
 add_subdirectory(stamp-patch)
 

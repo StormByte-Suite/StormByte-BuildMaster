@@ -29,6 +29,8 @@ If you landed here from a release link and have not read the tree:
 
 ### Fixed
 
+- **Changing a component's mode or ABI on an existing build dir now reconfigures it.** The stage stamp missed, but the nested configure only ran when the build tree was absent, so a component switched from `static` to `shared` (or built with different flags) kept its previous configure. Each nested tree now records the non-tree key it was configured with (`bm-stamp.configured`); a mismatch discards the nested CMake cache / Meson setup and configures again. The key now also covers the ABI inputs: C++ compiler, C/C++ flags (including per-build-type), linker flags, linker, MSVC runtime, C/C++ standard, sysroot and macOS architectures/deployment target. Build trees from earlier versions reconfigure once.
+
 ### ToDo
 
 - [ ] **`BUILDMASTER_JOBS`.** Cap concurrent BM stage scripts (configure/build/install) independently of `ninja -jN`. Sync log lines so two oficios do not interleave. Needs a portable lock around `_bm_log_message` (Unix + Windows `.ps1` runners). Empty `COMMENT` on `add_custom_command`; banners go through log only. Not part of the link or stamp contract. It hurts more today because every parent build re-enters every stage; after the stamps, the cap only matters on a real miss.

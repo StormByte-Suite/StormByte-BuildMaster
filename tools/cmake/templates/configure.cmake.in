@@ -17,6 +17,15 @@ _bm_stamp_enter(
 	"@_BM_STAMP_HOLDERS@"
 	"@_BM_STAMP_ENV@")
 if(NOT BM_STAMP_SKIP)
+	# A tree configured for another mode/ABI/options must not be reused.
+	_bm_stamp_config_current("@_CMAKE_BUILD_DIR@" "${BM_STAMP_EXTRA}" _bm_cfg_ok)
+	if(NOT _bm_cfg_ok AND EXISTS "@_CMAKE_BUILD_DIR@/CMakeCache.txt")
+		_bm_log_message(CMAKE STATUS
+			"Reconfiguring @_CMAKE_COMPONENT_TITLE@: mode, ABI or options changed"
+			"@_CMAKE_INDENT_LEVEL@")
+		file(REMOVE "@_CMAKE_BUILD_DIR@/CMakeCache.txt")
+		file(REMOVE_RECURSE "@_CMAKE_BUILD_DIR@/CMakeFiles")
+	endif()
 	# Cache alone is not enough: an interrupted first run leaves CMakeCache.txt
 	# (and CMakeScratch) without build.ninja. The next parent configure used
 	# to skip this block; Ninja then died with "loading build.ninja".
@@ -136,6 +145,7 @@ if(NOT BM_STAMP_SKIP)
 			_bm_log_message(CMAKE FATAL
 				"CMake configure failed for @_CMAKE_COMPONENT_TITLE@ (exit ${CMAKE_RESULT}). Working directory: @_CMAKE_BUILD_DIR@. Nested output was already written by the env runner.")
 		endif()
+		_bm_stamp_config_record("@_CMAKE_BUILD_DIR@" "${BM_STAMP_EXTRA}")
 	endif()
 	_bm_stamp_leave(0)
 endif()

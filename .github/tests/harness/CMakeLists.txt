@@ -184,6 +184,8 @@ add_custom_target(run_buildmaster_smoke
 		cr-buffer_install cr-bz2_install cr-crypto_install cr-pp_install
 		host_crypto_chain_test host_crypto_chain_test_run
 		host_nested_reconfigure_run
+		# Mode / ABI switch on an existing build dir
+		mode_switch_run
 		# Rename
 		rename-variant_install rename_variant_link_test
 		# Repack (NOINSTALL phases + REPACK meta)

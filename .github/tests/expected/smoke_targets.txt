@@ -145,6 +145,9 @@ mtc-inherit_install
 mtc-meson_install
 mtc-pinned_install
 
+# mode-switch
+mode_switch_run
+
 # noinstall
 noinstall-lib_install
 

@@ -8,8 +8,14 @@
 #   tree=<sha256>
 #   extra=<sha256>
 # bm-stamp.extra is the non-tree half in the clear (options, toolchain,
-# build type, IPO, mode, produced, OS/arch). A later install cache reads
-# these two files; it is not implemented here.
+# build type, IPO, mode, produced, OS/arch, ABI: compilers, flags, linker,
+# runtime). A later install cache reads these two files; it is not
+# implemented here.
+#
+# bm-stamp.configured (builddir) holds the `extra` digest the nested build
+# tree was last configured with. A stage miss with an existing tree whose
+# digest differs throws that tree's cache away so mode/ABI/option changes
+# reach the nested tool instead of reusing the previous configure.
 #
 # The tree digest is taken AFTER patches, before configure/build. A later
 # make may apply again and hash again. A hit skips the nested tool and
@@ -89,11 +95,28 @@ function(_bm_stamp_bake _id _srcdir _builddir _ipo_on _ipo_fat _tc)
 	if(NOT DEFINED CMAKE_BUILD_TYPE)
 		set(CMAKE_BUILD_TYPE "")
 	endif()
+	string(TOUPPER "${CMAKE_BUILD_TYPE}" _bt)
 	set(_text
 "build_type=${CMAKE_BUILD_TYPE}
 system=${CMAKE_SYSTEM_NAME}
 arch=${CMAKE_SYSTEM_PROCESSOR}
 compiler=${CMAKE_C_COMPILER}
+cxx_compiler=${CMAKE_CXX_COMPILER}
+c_flags=${CMAKE_C_FLAGS}
+cxx_flags=${CMAKE_CXX_FLAGS}
+c_flags_bt=${CMAKE_C_FLAGS_${_bt}}
+cxx_flags_bt=${CMAKE_CXX_FLAGS_${_bt}}
+exe_ldflags=${CMAKE_EXE_LINKER_FLAGS}
+shared_ldflags=${CMAKE_SHARED_LINKER_FLAGS}
+module_ldflags=${CMAKE_MODULE_LINKER_FLAGS}
+linker_type=${CMAKE_LINKER_TYPE}
+linker=${CMAKE_LINKER}
+msvc_runtime=${CMAKE_MSVC_RUNTIME_LIBRARY}
+c_standard=${CMAKE_C_STANDARD}
+cxx_standard=${CMAKE_CXX_STANDARD}
+sysroot=${CMAKE_SYSROOT}
+osx_arch=${CMAKE_OSX_ARCHITECTURES}
+osx_target=${CMAKE_OSX_DEPLOYMENT_TARGET}
 ipo=${_ipo_on}
 ipo_fat=${_ipo_fat}
 toolchain=${_tc}
@@ -129,6 +152,31 @@ options=${_options}
 	set(_BM_STAMP_PATCHES "${_patches}" PARENT_SCOPE)
 	set(_BM_STAMP_HOLDERS "${_holders}" PARENT_SCOPE)
 	set(_BM_STAMP_ENV "${_env}" PARENT_SCOPE)
+endfunction()
+
+## @brief Whether the nested tree in `_builddir` was configured with `_extra`.
+## @param[in]  _builddir Component build directory.
+## @param[in]  _extra    Current non-tree digest.
+## @param[out] _out      TRUE when `bm-stamp.configured` matches `_extra`.
+function(_bm_stamp_config_current _builddir _extra _out)
+	set(_ok FALSE)
+	set(_f "${_builddir}/bm-stamp.configured")
+	if(EXISTS "${_f}")
+		file(READ "${_f}" _have)
+		string(STRIP "${_have}" _have)
+		if(NOT "${_extra}" STREQUAL "" AND "${_have}" STREQUAL "${_extra}")
+			set(_ok TRUE)
+		endif()
+	endif()
+	set(${_out} "${_ok}" PARENT_SCOPE)
+endfunction()
+
+## @brief Record that the nested tree in `_builddir` matches `_extra`.
+## @param[in] _builddir Component build directory.
+## @param[in] _extra    Digest the nested tool was just configured with.
+function(_bm_stamp_config_record _builddir _extra)
+	file(MAKE_DIRECTORY "${_builddir}")
+	file(WRITE "${_builddir}/bm-stamp.configured" "${_extra}\n")
 endfunction()
 
 ## @brief SHA256 of every file under `_root` except `.git` and `_builddir`.

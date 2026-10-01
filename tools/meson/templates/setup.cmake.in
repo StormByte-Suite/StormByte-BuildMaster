@@ -18,6 +18,18 @@ _bm_stamp_enter(
 	"@_BM_STAMP_ENV@")
 if(NOT BM_STAMP_SKIP)
 
+# A tree configured for another mode/ABI/options must not be reused.
+_bm_stamp_config_current("@_MESON_BUILD_DIR@" "${BM_STAMP_EXTRA}" _bm_cfg_ok)
+if(NOT _bm_cfg_ok AND EXISTS "@_MESON_BUILD_DIR@/build.ninja")
+	_bm_log_message(MESON STATUS
+		"Reconfiguring @_MESON_COMPONENT_TITLE@: mode, ABI or options changed"
+		"@_MESON_INDENT_LEVEL@")
+	file(REMOVE "@_MESON_BUILD_DIR@/build.ninja")
+	file(REMOVE_RECURSE
+		"@_MESON_BUILD_DIR@/meson-private"
+		"@_MESON_BUILD_DIR@/meson-info")
+endif()
+
 if(NOT EXISTS "@_MESON_BUILD_DIR@/build.ninja")
 	if(NOT "@_BM_CONFIGURE_VIA_TARGET@" STREQUAL "1")
 		_bm_log_message(MESON STATUS
@@ -144,6 +156,7 @@ if(NOT EXISTS "@_MESON_BUILD_DIR@/build.ninja")
 		_bm_log_message(MESON FATAL
 			"Meson setup failed for @_MESON_COMPONENT_TITLE@ (exit ${MESON_SETUP_RESULT})\nWorking directory / build dir: @_MESON_BUILD_DIR@\n--- stdout ---\n${MESON_SETUP_OUT}\n--- stderr ---\n${MESON_SETUP_ERR}\n--- meson-log.txt ---\n${_meson_log}")
 	endif()
+	_bm_stamp_config_record("@_MESON_BUILD_DIR@" "${BM_STAMP_EXTRA}")
 endif()
 	_bm_stamp_leave(0)
 endif()
