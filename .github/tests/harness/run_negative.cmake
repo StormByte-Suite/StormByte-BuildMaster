@@ -33,6 +33,7 @@ set(_cfg_cases
 	exe-empty-produced
 	ipo-bad
 	group-undefined
+	alias-reuse-conflict
 )
 set(_ins_cases pc-clobber)
 set(_failed 0)
@@ -160,6 +161,15 @@ foreach(_c IN LISTS _cfg_cases)
 			string(FIND "${_blob}" "group was never created" _hit)
 			if(_hit LESS 0)
 				message(STATUS "negative/${_c} configure failed but not with never-created text:\n${_blob}")
+				math(EXPR _failed "${_failed} + 1")
+			else()
+				message(STATUS "[BuildMaster/Core     ]: negative/${_c} configure-failed as required")
+			endif()
+		elseif(_c STREQUAL "alias-reuse-conflict")
+			string(JOIN "\n" _blob "${_out}" "${_err}")
+			# CMake wraps the FATAL line; match whitespace-tolerant.
+			if(NOT "${_blob}" MATCHES "ALIAS 'Neg::Shared' already maps to[ \t\r\n]+'neg-owner'")
+				message(STATUS "negative/${_c} configure failed but not with alias-maps text:\n${_blob}")
 				math(EXPR _failed "${_failed} + 1")
 			else()
 				message(STATUS "[BuildMaster/Core     ]: negative/${_c} configure-failed as required")

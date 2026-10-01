@@ -106,12 +106,26 @@ endfunction()
 ## @brief Resolve an alias token to its component/meta id.
 ## @param[in]  _token   Id or alias (or raw dest).
 ## @param[out] out_id   Parent-scope id if `_token` is an alias; else `_token`.
+## @note A CMake ALIAS of an IMPORTED links stub (`links/<id>.cmake` exists)
+##       resolves to `<id>` even when the table has no entry. Flatten only
+##       reads `links/<raw id>.cmake`.
 function(_bm_alias_resolve _token out_id)
 	if("${_token}" STREQUAL "")
 		set(${out_id} "" PARENT_SCOPE)
 		return()
 	endif()
 	get_property(_owner GLOBAL PROPERTY BUILDMASTER_ALIAS_${_token})
+	if("${_owner}" STREQUAL "" AND TARGET "${_token}"
+			AND NOT "${BUILDMASTER_LINKS_DIR}" STREQUAL "")
+		get_property(_aliased TARGET "${_token}" PROPERTY ALIASED_TARGET)
+		if(NOT "${_aliased}" STREQUAL "" AND TARGET "${_aliased}")
+			get_property(_imported TARGET "${_aliased}" PROPERTY IMPORTED)
+			_bm_path_sanitize(_safe "${_aliased}")
+			if(_imported AND EXISTS "${BUILDMASTER_LINKS_DIR}/${_safe}.cmake")
+				set(_owner "${_aliased}")
+			endif()
+		endif()
+	endif()
 	if(NOT "${_owner}" STREQUAL "")
 		set(${out_id} "${_owner}" PARENT_SCOPE)
 	else()

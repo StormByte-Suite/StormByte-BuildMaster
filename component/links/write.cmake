@@ -418,6 +418,10 @@ endfunction()
 ## @note Same-process: id already in COMPONENT_IDS or a created meta.
 ##       Other process: `${BUILDMASTER_LINKS_DIR}/<sanitized>.cmake` exists
 ##       → include it (IMPORTED stub + aliases) and treat as already built.
+## @note Aliases of a reused file are registered in `BUILDMASTER_ALIAS_<a>`
+##       before the include, read with `file(READ)` (the writer may be
+##       another BuildMaster version). An alias that already maps to
+##       another id is FATAL.
 ## @note Other-process skip does not mean the caller has no dependency.
 ##       The id is appended to `${CMAKE_BINARY_DIR}/bm-reuse-needs.txt`
 ##       (the first call in this process truncates that file). The parent
@@ -472,6 +476,26 @@ function(_bm_links_try_reuse _id _title out_skip)
 			_bm_log_message(COMPONENT DEBUG
 				"reuse: '${_id}' was published by this build dir; configuring again")
 		elseif(EXISTS "${_file}")
+			# The template only creates ALIAS targets. Without the table entry
+			# buildmaster_link(host Alias) stores the alias, not the id.
+			file(READ "${_file}" _txt)
+			set(_file_aliases "")
+			if("${_txt}" MATCHES "set\\(_bm_links_aliases \"([^\"]*)\"\\)")
+				set(_file_aliases "${CMAKE_MATCH_1}")
+			endif()
+			foreach(_a IN LISTS _file_aliases)
+				if("${_a}" STREQUAL "")
+					continue()
+				endif()
+				get_property(_owner GLOBAL PROPERTY BUILDMASTER_ALIAS_${_a})
+				if("${_owner}" STREQUAL "")
+					set_property(GLOBAL PROPERTY BUILDMASTER_ALIAS_${_a} "${_id}")
+					_bm_log_message(COMPONENT DEBUG "ALIAS ${_a} → ${_id} (reused links)")
+				elseif(NOT _owner STREQUAL "${_id}")
+					_bm_log_message(COMPONENT FATAL
+						"ALIAS '${_a}' already maps to '${_owner}'")
+				endif()
+			endforeach()
 			include("${_file}")
 			set(_who "${_id}")
 			if(DEFINED _BM_LINKS_ORIGIN_TITLE AND NOT "${_BM_LINKS_ORIGIN_TITLE}" STREQUAL "")

@@ -181,6 +181,7 @@ add_custom_target(run_buildmaster_smoke
 		links_transitive_test links_transitive_test_run
 		RaceA_install RaceB_install
 		links_race_test links_race_test_run
+		links_reuse_alias_run
 		cr-buffer_install cr-bz2_install cr-crypto_install cr-pp_install
 		host_crypto_chain_test host_crypto_chain_test_run
 		host_nested_reconfigure_run
