@@ -27,6 +27,8 @@ If you landed here from a release link and have not read the tree:
 
 ### Changed
 
+- **`BUILDMASTER_DATADIR` replaces `BUILDMASTER_DOWNLOADSDIR` as the external setting.** It names the directory for BuildMaster's own data (downloads, caches, …) and is read from `-DBUILDMASTER_DATADIR=…` first, then the `BUILDMASTER_DATADIR` environment variable, defaulting to BuildMaster's build directory. Downloads now live in `<BUILDMASTER_DATADIR>/downloads` (created if missing), which with the default is the same path as before. The `BUILDMASTER_DOWNLOADSDIR` environment variable is no longer read. Nested BuildMaster configures inherit the outermost value.
+
 ### Fixed
 
 - **Changing a component's mode or ABI on an existing build dir now reconfigures it.** The stage stamp missed, but the nested configure only ran when the build tree was absent, so a component switched from `static` to `shared` (or built with different flags) kept its previous configure. Each nested tree now records the non-tree key it was configured with (`bm-stamp.configured`); a mismatch discards the nested CMake cache / Meson setup and configures again. The key now also covers the ABI inputs: C++ compiler, C/C++ flags (including per-build-type), linker flags, linker, MSVC runtime, C/C++ standard, sysroot and macOS architectures/deployment target. Build trees from earlier versions reconfigure once.

@@ -11,6 +11,9 @@ be-pick_install
 # bootstrap-anywhere
 bootstrap_anywhere_run
 
+# datadir
+datadir_run
+
 # dep
 dep_install
 

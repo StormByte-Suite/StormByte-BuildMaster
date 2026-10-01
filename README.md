@@ -66,7 +66,7 @@ BuildMaster is that layer, written once:
 | A submodule whose `meson.build` / `CMakeLists.txt` lives one folder down | `SOURCE=libfoo` (same isolation as `GIT ROOT=`) |
 | Dual markers and a private `_bm_backend_*_create` | `BACKEND=cmake` / `BACKEND=meson` |
 | `cmake_language(DEFER)` so a summary line appears *after* the graph | Hooks |
-| Waiting on a slow tarball every `rm -rf build` | `BUILDMASTER_DOWNLOADSDIR` outside the build tree |
+| Waiting on a slow tarball every `rm -rf build` | `BUILDMASTER_DATADIR` outside the build tree |
 | Four public git helpers plus an `include()` | `GIT={…}` on the component |
 | A download target plus a prerequisite edge | `FILES={…}` on the component |
 | Manual `INDENT=` so related leaves line up in the log | `buildmaster_group` |
@@ -110,6 +110,7 @@ a product, not a build blog.
 - [Logging](#logging)
 - [Verbosity of tool output](#verbosity-of-tool-output)
 - [Fail-fast](#fail-fast)
+- [Data directory (`BUILDMASTER_DATADIR`)](#data-directory-buildmaster_datadir)
 - [Compiler cache](#compiler-cache)
 - [Recursive usage](#recursive-usage)
 - [Platform notes](#platform-notes)
@@ -804,7 +805,9 @@ is FATAL). `REPACK` on the executable itself is FATAL.
 "FILES={URL=https://example.com/foo.tar.xz;NAME=foo.tar.xz;SHA256=…;UNPACK;SOURCE}"
 ```
 
-Cached under `BUILDMASTER_DOWNLOADSDIR`. Meta + any `FILES` key is FATAL.
+Cached under `<BUILDMASTER_DATADIR>/downloads` (see
+[Data directory](#data-directory-buildmaster_datadir)). Meta + any `FILES`
+key is FATAL.
 `GIT={…}` + FILES `SOURCE` is FATAL (two owners of the same tree).
 
 ---
@@ -1027,6 +1030,22 @@ hooks (`BuildMaster <version> Configuration:`). That is still not
 `BUILDMASTER_FAIL_FAST` (env or `-D`; truthy `1` / `ON` / `TRUE` /
 `YES`). On stage failure a marker is written and later stages skip.
 Default OFF so independent leaves can still warm a compiler cache.
+
+---
+
+## Data directory (`BUILDMASTER_DATADIR`)
+
+Where BuildMaster keeps its own data: downloads, caches and similar
+state that may outlive a build tree. Set with `-DBUILDMASTER_DATADIR=…`
+or the `BUILDMASTER_DATADIR` environment variable (`-D` wins). Default:
+BuildMaster's build directory.
+
+| Path | Content |
+| --- | --- |
+| `<BUILDMASTER_DATADIR>/downloads` | `FILES={…}` archives (created if missing) |
+
+Point it outside the build tree to keep downloads across `rm -rf build`.
+Nested BuildMaster configures inherit the outermost value.
 
 ---
 

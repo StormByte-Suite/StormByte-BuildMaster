@@ -35,7 +35,7 @@ endfunction()
 ## @param[out] _out Name of the variable to set in the parent scope.
 ## @param[in]  _input Path (may contain backslashes or surrounding quotes).
 ## @note Strips optional surrounding quotes, then applies file(TO_CMAKE_PATH).
-##       Use for ENV-derived paths (BUILDMASTER_DOWNLOADSDIR, cache dirs, etc.)
+##       Use for ENV-derived paths (BUILDMASTER_DATADIR, cache dirs, etc.)
 ##       so they are safe in toolchain.cmake and CMake string expansion.
 ##       Does not quote spaces; those belong in `_bm_path_compile_include`.
 function(_bm_path_normalize _out _input)

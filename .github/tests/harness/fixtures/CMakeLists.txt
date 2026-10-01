@@ -37,6 +37,7 @@ add_subdirectory(exe/meson)
 # ---------------------------------------------------------------------------
 # File helpers (FILES unpack on a real component)
 # ---------------------------------------------------------------------------
+add_subdirectory(datadir)
 add_subdirectory(file-decompress)
 add_subdirectory(file-to-component)
 

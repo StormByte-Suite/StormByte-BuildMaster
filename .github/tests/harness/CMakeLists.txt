@@ -186,6 +186,8 @@ add_custom_target(run_buildmaster_smoke
 		host_nested_reconfigure_run
 		# Mode / ABI switch on an existing build dir
 		mode_switch_run
+		# BUILDMASTER_DATADIR (-D / ENV / default, nested, cache reuse)
+		datadir_run
 		# Rename
 		rename-variant_install rename_variant_link_test
 		# Repack (NOINSTALL phases + REPACK meta)

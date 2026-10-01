@@ -23,10 +23,13 @@ heading only. Do not put those tags in this preamble.
 
 ## [Unreleased]
 
-Empty while every caller-breaking note already lives under a
-versioned heading below. After a tagged release, new *caller-breaking*
-notes (`old call → new call`) land here until the next tag.
+After a tagged release, new *caller-breaking* notes
+(`old call → new call`) land here until the next tag.
 Do not paste changelog bullets.
+
+| Old | New |
+|-----|-----|
+| `BUILDMASTER_DOWNLOADSDIR=/cache` (env) | `BUILDMASTER_DATADIR=/data` (env or `-D`); downloads land in `/data/downloads` |
 
 [Unreleased]: https://github.com/StormBytePP/StormByte-BuildMaster/compare/2.0.0...HEAD
 
@@ -248,7 +251,7 @@ buildmaster_component(
 )
 ```
 
-Cache: `BUILDMASTER_DOWNLOADSDIR`. Unpack before nested configure.
+Cache: `<BUILDMASTER_DATADIR>/downloads`. Unpack before nested configure.
 FILES `SOURCE` *is* the srcdir (positional path WARNING).
 `GIT={…}` + FILES `SOURCE`: FATAL.
 No public `buildmaster_download` / `buildmaster_decompress`.
