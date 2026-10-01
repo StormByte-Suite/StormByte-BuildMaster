@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.21)
 project(BuildMasterConsumer LANGUAGES C)
 
 # Linking an executable in this directory to a target declared in

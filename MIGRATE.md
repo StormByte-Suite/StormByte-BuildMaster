@@ -29,6 +29,7 @@ Do not paste changelog bullets.
 
 | Old | New |
 |-----|-----|
+| CMake 3.20 | CMake ≥ 3.21 (`cmake_minimum_required(VERSION 3.21)` in the caller) |
 | `BUILDMASTER_DOWNLOADSDIR=/cache` (env) | `BUILDMASTER_DATADIR=/data` (env or `-D`); downloads land in `/data/downloads` |
 
 [Unreleased]: https://github.com/StormBytePP/StormByte-BuildMaster/compare/2.0.0...HEAD

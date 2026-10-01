@@ -1,3 +1,8 @@
+# file(RENAME ... RESULT) in the download scripts needs 3.21.
+if(CMAKE_VERSION VERSION_LESS 3.21)
+	message(FATAL_ERROR "BuildMaster requires CMake >= 3.21 (found ${CMAKE_VERSION})")
+endif()
+
 # -----------------------------------------------------------------------------
 # Version (pin local, before any redirect)
 # -----------------------------------------------------------------------------

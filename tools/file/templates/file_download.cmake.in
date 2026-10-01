@@ -209,7 +209,12 @@ endif()
 
 get_filename_component(_output_dir "${_output}" DIRECTORY)
 file(MAKE_DIRECTORY "${_output_dir}")
-file(RENAME "${_part}" "${_output}")
+file(RENAME "${_part}" "${_output}" RESULT _rename_rc)
+if(NOT _rename_rc EQUAL 0)
+	file(REMOVE "${_part}")
+	_bm_log_message(FILE FATAL
+		"Could not move ${_part} to ${_output}: ${_rename_rc}" ${_indent_n})
+endif()
 
 _bm_log_message(FILE STATUS "Downloading ${_title}... OK" ${_indent_n})
 _bm_log_message(FILE LOWLEVEL "Exiting buildmaster_download script")
