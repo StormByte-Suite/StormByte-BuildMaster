@@ -2,6 +2,9 @@
 # Inputs: RA_BM_ROOT RA_SRC RA_BIN RA_GENERATOR RA_BUILD_TYPE
 #         RA_C_COMPILER RA_CXX_COMPILER
 
+# -P scripts start with every policy unset; IN_LIST needs CMP0057.
+cmake_minimum_required(VERSION 3.21)
+
 foreach(_v RA_BM_ROOT RA_SRC RA_BIN RA_GENERATOR)
 	if("${${_v}}" STREQUAL "")
 		message(FATAL_ERROR "links-reuse-alias: ${_v} is empty")
