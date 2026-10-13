@@ -29,6 +29,7 @@ If you landed here from a release link and have not read the tree:
 
 ### Fixed
 
+- **Reused component skips identify their writer.** When a nested configure reuses an existing links file, the status names the component that published it instead of repeating the skipped component's own title. Older links files without a recognizable writer use neutral reuse wording.
 - **Component `REPACK` is idempotent across builds.** The publisher archive is snapshotted after installation and never re-used as a merge input; component merges run from the install wrapper before its install stamp closes. Inputs, archiver/recipe and output bytes are stamped, so no-op builds skip the merge while changed members, missing outputs, and interrupted partial archives trigger a safe same-directory rebuild and atomic `file(RENAME)` publication.
 
 ### ToDo

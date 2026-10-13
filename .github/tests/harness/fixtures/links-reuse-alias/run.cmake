@@ -20,7 +20,7 @@ file(MAKE_DIRECTORY "${RA_BIN}")
 
 ## @brief Run a command; FATAL with its output on failure.
 ## @param[in] _label Step name for the error.
-function(_ra_run _label)
+function(_ra_run _label _out_var)
 	execute_process(
 		COMMAND ${ARGN}
 		RESULT_VARIABLE _rc
@@ -30,16 +30,25 @@ function(_ra_run _label)
 	if(NOT _rc EQUAL 0)
 		message(FATAL_ERROR "links-reuse-alias: ${_label} failed (${_rc})\n${_out}")
 	endif()
+	set(${_out_var} "${_out}" PARENT_SCOPE)
 endfunction()
 
-_ra_run("configure"
+
+_ra_run("configure" _configure_output
 	"${CMAKE_COMMAND}" -S "${RA_SRC}" -B "${_bld}" -G "${RA_GENERATOR}"
 	"-DCMAKE_BUILD_TYPE=${RA_BUILD_TYPE}"
 	"-DCMAKE_C_COMPILER=${RA_C_COMPILER}"
 	"-DCMAKE_CXX_COMPILER=${RA_CXX_COMPILER}"
 	"-DRA_BM_ROOT=${RA_BM_ROOT}")
+if(NOT "${_configure_output}" MATCHES
+		"already built by 'ra-log' \\(ra-base\\)")
+	message(FATAL_ERROR
+		"links-reuse-alias: reused ra-base was not attributed to ra-log\n${_configure_output}")
+endif()
+
 # ra-sys links with --no-undefined / -undefined,error: no -lra-base, no build.
-_ra_run("build" "${CMAKE_COMMAND}" --build "${_bld}"
+
+_ra_run("build" _build_output "${CMAKE_COMMAND}" --build "${_bld}"
 	--target ra-log_install ra-sys_install)
 set(_built FALSE)
 foreach(_lib libra-sys.so libra-sys.dylib ra-sys.dll)
