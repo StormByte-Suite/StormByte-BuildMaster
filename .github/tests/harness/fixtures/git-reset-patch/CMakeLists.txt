@@ -30,21 +30,36 @@ index 1111111..2222222 100644
 +patched
 ")
 
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/add_second_marker.patch"
+"diff --git a/SECOND_MARKER b/SECOND_MARKER
+new file mode 100644
+--- /dev/null
++++ b/SECOND_MARKER
+@@ -0,0 +1 @@
++second patch applied
+")
+
 # Patch first in source order; flush must still reset then apply.
-_bm_tools_git_patch(
-    grp
-    "harness reset-patch apply"
-    "${_GRP}"
-    "${CMAKE_CURRENT_BINARY_DIR}/add_marker.patch"
-)
+# Reset before applying the variable-backed PATCH batch on every configure.
 _bm_tools_git_reset(
     grp
     "harness reset-patch reset"
     "${_GRP}"
 )
 
+set(_patches
+    "${CMAKE_CURRENT_BINARY_DIR}/add_marker.patch"
+    "${CMAKE_CURRENT_BINARY_DIR}/add_second_marker.patch")
+set(_git_optstr "GIT={PATCH={${_patches}};TITLE=variable patch batch}")
+
+# PATCHES is a real CMake list expanded into the nested GIT group.
+_bm_comp_apply_git(grp "harness reset-patch apply" "${_GRP}" "${_git_optstr}")
+
 file(READ "${_GRP}/README" _readme)
 if(NOT _readme MATCHES "patched")
     message(FATAL_ERROR
         "git-reset-patch: README was not patched after flush:\n${_readme}")
+endif()
+if(NOT EXISTS "${_GRP}/SECOND_MARKER")
+    message(FATAL_ERROR "git-reset-patch: second batch patch was not applied")
 endif()

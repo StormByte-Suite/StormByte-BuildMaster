@@ -827,6 +827,14 @@ each archive, especially when download URLs end in a generic path such as
 "GIT={FETCH;SWITCH=release/1.2;RESET;PATCH=patches/foo.patch;ROOT=src}"
 ```
 
+`PATCH` accepts a CMake list in an explicit nested brace group. Each list item
+is applied in order, and following GIT fields remain separate:
+
+```cmake
+set(_patches "patches/one.patch;patches/two.patch")
+"GIT={PATCH={${_patches}};TITLE=local fixes;ROOT=src}"
+```
+
 Order is fixed: FETCH → SWITCH → RESET → PATCH. Empty `GIT` / `GIT={}`
 is WARNING. Meta + a real git op is FATAL.
 

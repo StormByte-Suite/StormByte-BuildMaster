@@ -18,9 +18,9 @@
 ##       Empty `SWITCH=` or empty `PATCH=` or empty `ROOT=` → FATAL.
 ##       Meta + any GIT op is FATAL in `buildmaster_meta`.
 ## @note `PATCH=` is one path. `PATCH={a;b}` (or several `PATCH=` keys) is
-##       several paths in declaration order. A CMake list expanded inside
-##       `PATCH={${LIST}}` is the same form. Brace unwrap happens here so
-##       `PARENT_SCOPE` does not re-split `{a;b}` into `{a` + `b}`.
+## @note `PATCH=` is one path. Several paths use `PATCH={a;b}`, including a
+##       CMake-list expansion `PATCH={${LIST}}`. Brace unwrap happens here so
+##       `PARENT_SCOPE` does not re-split the path list.
 ## @note `ROOT=` is always a path under the component srcdir. A leading
 ##       `/` or drive letter is stripped (not an absolute filesystem path).
 ##       Omitted `ROOT` → work tree is srcdir. Git is demanded only when
