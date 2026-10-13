@@ -25,6 +25,17 @@ If you landed here from a release link and have not read the tree:
 
 ### ToDo
 
+- [ ] **Stamp tree hashing must handle symbolic links before regular files.**
+  Windows CI failed while configuring tessdata: `_bm_stamp_walk` reached
+  `file(SHA256)` for `src/configs`, a symbolic link to the
+  `tessconfigs/configs` directory, and Windows returned "Permission denied".
+  Check `IS_SYMLINK` first, read its target with `file(READ_SYMLINK)`, and
+  include the relative link path, entry type and target text in the tree digest
+  without following the link. Directory and dangling links must never reach
+  `file(SHA256)`. Cover file links, directory links, dangling links and changed
+  targets on Windows and Unix. Until fixed, Multimedia's Windows CI materializes
+  tessdata's `configs` link as a regular text file with `core.symlinks=false`
+  and `git checkout-index --force`.
 - [ ] **`BUILDMASTER_JOBS`.** Cap concurrent BM stage scripts (configure/build/install) independently of `ninja -jN`. Sync log lines so two oficios do not interleave. Needs a portable lock around `_bm_log_message` (Unix + Windows `.ps1` runners). Empty `COMMENT` on `add_custom_command`; banners go through log only. Not part of the link or stamp contract. It hurts more today because every parent build re-enters every stage; after the stamps, the cap only matters on a real miss.
 - [ ] **Named install phases.** Split the current `_install` bag into explicit pre-install oficios (`rename` on a `NOINSTALL` BUILDDIR) and post-install oficios (`rename` on the prefix, `strip_res`, `.pc` rewrite, git `RESET`). Keep `_install` as the public stamp until callers migrate. Document that `NOINSTALL` still runs the install wrapper and does not call `cmake --install`. The stamp, and any cache blob, closes only after the post oficios, so the published prefix is what consumers actually link. Do not add new public targets for the phases yet.
 - [ ] **`validate/`** for contract FATALs (factory / options / meta / group / demand). Operation FATALs stay in `-P` workers. Move them when those files are already being touched; not a prerequisite of the link or stamp work.
