@@ -1,6 +1,16 @@
 set(_patches patch-one.diff patch-two.diff)
+if(WIN32)
+	set(_linkflags_platform WINDOWS)
+	set(_linkflags_expected "/FORCE:MULTIPLE;/INCREMENTAL:NO")
+elseif(APPLE)
+	set(_linkflags_platform MAC)
+	set(_linkflags_expected "-pthread;-Wl,--as-needed")
+else()
+	set(_linkflags_platform LINUX)
+	set(_linkflags_expected "-pthread;-Wl,--as-needed")
+endif()
 set(_optstr
-	"TOOLCHAIN=gcc;GIT={PATCH={${_patches}};TITLE=tokenizer probe};LINK={m;dl};LINKFLAGS={LINUX={-pthread;-Wl,--as-needed}}")
+	"TOOLCHAIN=gcc;GIT={PATCH={${_patches}};TITLE=tokenizer probe};LINK={m;dl};LINKFLAGS={${_linkflags_platform}={${_linkflags_expected}}}")
 
 _bm_opt_split_pairs("${_optstr}" _pairs)
 list(LENGTH _pairs _pair_count)
@@ -27,7 +37,7 @@ if(NOT "${_link_items}" STREQUAL "m;dl")
 endif()
 
 _bm_opt_parse_linkflags("${_optstr}" _linkflags)
-if(NOT "${_linkflags}" STREQUAL "-pthread;-Wl,--as-needed")
+if(NOT "${_linkflags}" STREQUAL "${_linkflags_expected}")
 	message(FATAL_ERROR
 		"optstr tokenizer: nested LINKFLAGS parsed as '${_linkflags}'")
 endif()
