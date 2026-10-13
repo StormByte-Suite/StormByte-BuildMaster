@@ -6,11 +6,34 @@
 # Optstr REPACK on buildmaster_meta() merges that meta's member leaves
 # into one prefix archive named after the meta id (OUTPUT of that path).
 # Optstr REPACK on buildmaster_component() merges first-level depend/link
-# dests that are NOINSTALL static into this component's already-installed
-# prefix archive (POST_BUILD on <id>_install — never a second OUTPUT on
-# the GNU .a; that collides with the install_exec rule).
+# dests that are NOINSTALL static into this component's installed prefix
+# archive. Its generated install wrapper runs the merge before its stamp closes.
 
 include("${CMAKE_CURRENT_LIST_DIR}/../log.cmake")
+
+## @brief Resolve the pristine publisher archive and freshness stamp paths.
+## @param[in]  id        Component identifier.
+## @param[in]  builddir  Component build directory.
+## @param[in]  outputs   Canonical output archive paths.
+## @param[out] out_src   First canonical archive, or empty when inapplicable.
+## @param[out] out_copy  Persistent unmerged publisher archive path.
+## @param[out] out_stamp Incremental merge stamp path.
+function(_bm_repack_component_paths id builddir outputs out_src out_copy out_stamp)
+	get_property(_enabled GLOBAL PROPERTY BUILDMASTER_COMPONENT_${id}_REPACK)
+	get_property(_mode GLOBAL PROPERTY BUILDMASTER_COMPONENT_${id}_MODE)
+	set(_src "")
+	set(_copy "")
+	set(_stamp "")
+	if(_enabled AND _mode STREQUAL "static" AND outputs)
+		list(GET outputs 0 _src)
+		set(_dir "${builddir}/.bm-repack")
+		set(_copy "${_dir}/${id}.publisher")
+		set(_stamp "${_dir}/${id}.stamp")
+	endif()
+	set(${out_src} "${_src}" PARENT_SCOPE)
+	set(${out_copy} "${_copy}" PARENT_SCOPE)
+	set(${out_stamp} "${_stamp}" PARENT_SCOPE)
+endfunction()
 
 ## @brief First-level depend/link dests of `id` that may be REPACK members.
 ## @param[in]  id      Publishing component with REPACK.
@@ -143,7 +166,9 @@ endfunction()
 ##       INPUTS are the publisher plus the NOINSTALL members (publisher
 ##       first so the merge rewrites the installed .a).
 ## @note KIND=component → POST_BUILD on `<id>_install`. Do not declare
-##       OUTPUT of that GNU path (install_exec already owns it).
+## @note KIND=component registers its recipe for the generated install
+##       wrapper, which runs it before `_bm_stamp_leave(create)` and on hits.
+##       The pristine publisher snapshot is always the component input.
 function(_bm_repack_register_components)
 	_bm_log_message(COMPONENT LOWLEVEL "Entering _bm_repack_register_components")
 	get_property(_ids GLOBAL PROPERTY BUILDMASTER_COMPONENT_IDS)
@@ -323,8 +348,9 @@ endfunction()
 ##       The merge file is a custom command OUTPUT; `<id>_merge` depends
 ##       on that file and `<id>_install` depends on `<id>_merge`.
 ## @note Component KIND: POST_BUILD on the existing `<id>_install`.
-##       Consumers already wait on `<id>_install`, so they see the merged
-##       archive. No extra OUTPUT on the GNU path.
+## @note Component KIND: recipe is included by the existing `<id>_install`
+##       wrapper before it closes its stamp. Consumers already wait on
+##       `<id>_install`, so they see the merged archive.
 ## @note `-DCMAKE_AR=` comes from `_bm_repack_ar_arg` (publisher profile),
 ##       not from the parent job's `CMAKE_AR`.
 function(_bm_repack_materialize)
@@ -360,6 +386,11 @@ function(_bm_repack_materialize)
 				continue()
 			endif()
 			_bm_repack_resolve_input("${_tok}" _f _d)
+			if(_kind STREQUAL "component" AND _tok STREQUAL "${_id}")
+				get_property(_builddir GLOBAL PROPERTY
+					BUILDMASTER_COMPONENT_${_id}_BUILDDIR)
+				set(_f "${_builddir}/.bm-repack/${_id}.publisher")
+			endif()
 			list(APPEND _all_files ${_f})
 			list(APPEND _all_deps ${_d})
 		endforeach()
@@ -384,23 +415,42 @@ function(_bm_repack_materialize)
 		string(REPLACE ";" "," _inputs_joined "${_inputs_joined}")
 
 		_bm_repack_ar_arg("${_id}" _ar_arg)
+		set_property(GLOBAL PROPERTY BUILDMASTER_REPACK_${_id}_FILES "${_all_files}")
 
 		if(_kind STREQUAL "component")
-			if(NOT TARGET ${_id}_install)
-				_bm_log_message(COMPONENT FATAL
-					"REPACK component '${_id}': missing ${_id}_install")
+			get_property(_builddir GLOBAL PROPERTY
+				BUILDMASTER_COMPONENT_${_id}_BUILDDIR)
+			set(_repack_member_files "${_all_files}")
+			list(REMOVE_ITEM _repack_member_files
+				"${_builddir}/.bm-repack/${_id}.publisher")
+			if(_repack_member_files)
+				add_custom_command(
+					OUTPUT "${_out_path}"
+					APPEND
+					DEPENDS ${_repack_member_files}
+				)
 			endif()
-			add_custom_command(
-				TARGET ${_id}_install POST_BUILD
-				COMMAND ${CMAKE_COMMAND}
-					"-DOUTPUT=${_out_path}"
-					"-DINPUTS=${_inputs_joined}"
-					"-DBUILDMASTER_SRCDIR=${BUILDMASTER_SRCDIR}"
-					${_ar_arg}
-					-P "${_merge_script}"
-				COMMENT "[BuildMaster/Component]: Repacking ${_id} → ${_out_name}"
-				VERBATIM
-			)
+			set(_stamp_file "${_builddir}/.bm-repack/${_id}.stamp")
+			set(_repack_ar "")
+			if(_ar_arg MATCHES "^-DCMAKE_AR=(.+)$")
+				set(_repack_ar "${CMAKE_MATCH_1}")
+			endif()
+			set(_repack_dir "${BUILDMASTER_SCRIPTSDIR}/repack")
+			file(MAKE_DIRECTORY "${_repack_dir}")
+			set(_repack_file "${_repack_dir}/${_id}.cmake")
+			string(CONCAT _repack_text
+				"set(OUTPUT [==[${_out_path}]==])\n"
+				"set(INPUTS [==[${_inputs_joined}]==])\n"
+				"set(BUILDMASTER_SRCDIR [==[${BUILDMASTER_SRCDIR}]==])\n"
+				"set(CMAKE_AR [==[${_repack_ar}]==])\n"
+				"set(STAMP_FILE [==[${_stamp_file}]==])\n"
+				"include([==[${_merge_script}]==])\n")
+			file(WRITE "${_repack_file}" "${_repack_text}")
+			set_property(GLOBAL PROPERTY BUILDMASTER_REPACK_${_id}_STAMP
+				"${_stamp_file}")
+			set_property(GLOBAL PROPERTY BUILDMASTER_REPACK_${_id}_SCRIPT
+				"${_repack_file}")
+			list(REMOVE_ITEM _all_deps "${_id}_install")
 			if(_all_deps)
 				add_dependencies(${_id}_install ${_all_deps})
 			endif()

@@ -82,6 +82,7 @@ function(_bm_materialize_finalize)
 	endif()
 
 	_bm_meta_stamp_noinstall()
+	_bm_repack_register_components()
 
 	_bm_materialize_inject_private_headers()
 	_bm_materialize_inject_linkflags()

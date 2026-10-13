@@ -30,6 +30,24 @@ add_subdirectory("${BM_TEST_FIXTURES_DIR}")
 # _bm_materialize_finalize is internal and idempotent; the deferred
 # callback later is a no-op.
 _bm_materialize_finalize()
+get_property(_rs_pub_output GLOBAL PROPERTY BUILDMASTER_REPACK_rs-pub_FILE)
+get_property(_rs_pub_files GLOBAL PROPERTY BUILDMASTER_REPACK_rs-pub_FILES)
+get_property(_rs_pub_builddir GLOBAL PROPERTY BUILDMASTER_COMPONENT_rs-pub_BUILDDIR)
+_bm_repack_ar_arg(rs-pub _rs_pub_ar_arg)
+if(NOT _rs_pub_ar_arg MATCHES "^-DCMAKE_AR=(.+)$")
+	message(FATAL_ERROR "REPACK roundtrip fixture has no resolved archive tool")
+endif()
+string(REPLACE ";" "," _rs_pub_inputs "${_rs_pub_files}")
+add_custom_target(repack_static_roundtrip_check
+	COMMAND ${CMAKE_COMMAND}
+		"-DINPUTS=${_rs_pub_inputs}"
+		"-DCMAKE_AR=${CMAKE_MATCH_1}"
+		"-DBUILDMASTER_SRCDIR=${BM_TEST_REPO_ROOT}"
+		"-DWORK_DIR=${CMAKE_BINARY_DIR}/repack-roundtrip"
+		-P "${BM_TEST_FIXTURES_DIR}/repack-static/check_roundtrip.cmake"
+	DEPENDS rs-pub_install
+	VERBATIM
+)
 
 get_property(_stamp_repo GLOBAL PROPERTY STAMP_PATCH_REPO)
 get_property(_stamp_bd GLOBAL PROPERTY STAMP_PATCH_BUILDDIR)
@@ -196,6 +214,7 @@ add_custom_target(run_buildmaster_smoke
 		repack_link_test
 		rs-hi_install rs-lo_install rs-pub_install
 		repack_static_link_test
+		repack_static_roundtrip_check
 		# Slow configure
 		slow-configure_install
 		# Stamp (illegal upstream minimum; second install must hit)

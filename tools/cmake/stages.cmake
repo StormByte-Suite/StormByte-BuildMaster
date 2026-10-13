@@ -425,6 +425,14 @@ function(_bm_tools_cmake_stages _file_configure _file_compile _file_install _com
 	set(_CMAKE_SRCDIR "${_srcdir}")
 	set(_CMAKE_BUILD_DIR "${_builddir}")
 	set(_CMAKE_OUTPUT_LIBRARIES "${_output_libraries}")
+	_bm_repack_component_paths("${_component}" "${_builddir}"
+		"${_output_libraries}" _BM_REPACK_PUBLISHER_SOURCE
+		_BM_REPACK_PUBLISHER_COPY _BM_REPACK_STAMP)
+	set(_BM_REPACK_SCRIPT "")
+	if(NOT _BM_REPACK_PUBLISHER_COPY STREQUAL "")
+		set(_BM_REPACK_SCRIPT
+			"${BUILDMASTER_SCRIPTSDIR}/repack/${_component}.cmake")
+	endif()
 
 	if(BUILDMASTER_VERBOSE)
 		set(_CMAKE_BUILD_VERBOSE_ARGS "--verbose")

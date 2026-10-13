@@ -748,9 +748,14 @@ prefix archive named after the meta id. Shared members stay INTERFACE
 
 `REPACK` on a **static** `buildmaster_component` merges first-level
 `depend`/`link` dests that are NOINSTALL static into that component’s
-already-installed prefix archive. It is **not** how you propagate
-`pq` / CoreFoundation / `m` to a test that links `Database.a`. That
-is the sidecar. Headers / executable + `REPACK` on the same id is
+prefix archive. The install wrapper snapshots the publisher archive after
+install/oficios, merges from that pristine snapshot, and closes the install
+stamp only after the merge succeeds. Repeated builds skip an unchanged merge;
+changed member archives or a missing merged output trigger a new merge,
+published from a same-directory temporary archive. The recipe also checks the
+published archive hash whenever it runs. It is **not** how
+you propagate `pq` / CoreFoundation / `m` to a test that links `Database.a`.
+That is the sidecar. Headers / executable + `REPACK` on the same id is
 FATAL. An `executable` dest of a REPACK publisher is skipped (INFO),
 not a member. Shared + `REPACK` on a component is WARNING + skip.
 Zero static members is FATAL. `REPACK` + `NOINSTALL` on the same id

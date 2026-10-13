@@ -257,6 +257,14 @@ function(_bm_tools_meson_stages _file_setup _file_compile _file_install _compone
 	set(_MESON_BUILD_DIR "${_builddir}")
 	set(_MESON_SRCDIR "${_srcdir}")
 	set(_MESON_OUTPUT_LIBRARIES "${_output_libraries}")
+	_bm_repack_component_paths("${_component}" "${_builddir}"
+		"${_output_libraries}" _BM_REPACK_PUBLISHER_SOURCE
+		_BM_REPACK_PUBLISHER_COPY _BM_REPACK_STAMP)
+	set(_BM_REPACK_SCRIPT "")
+	if(NOT _BM_REPACK_PUBLISHER_COPY STREQUAL "")
+		set(_BM_REPACK_SCRIPT
+			"${BUILDMASTER_SCRIPTSDIR}/repack/${_component}.cmake")
+	endif()
 
 	set(_bm_c_compiler "${CMAKE_C_COMPILER}")
 	set(_bm_cxx_compiler "${CMAKE_CXX_COMPILER}")
