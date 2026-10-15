@@ -183,9 +183,13 @@ endfunction()
 ## @param[in]  _root     Directory to hash (the component srcdir).
 ## @param[in]  _builddir Build directory to skip when it sits inside `_root`.
 ## @param[out] _out      Hex digest in the caller.
-## @note One `file(SHA256)` per file, then `string(SHA256)` of the sorted
-##       `relative-path digest` lines. That is the concatenation digest
-##       without reading every byte into one string.
+## @note One `file(SHA256)` per regular file, then `string(SHA256)` of the
+##       sorted lines. A symbolic link is not opened and its target is not
+##       walked: the line is the relative path, the kind
+##       (`symlink-file`, `symlink-directory` or `symlink-dangling`) and the
+##       target text from `file(READ_SYMLINK)`. Directory and dangling links
+##       never reach `file(SHA256)`. A regular file stays `relpath digest`,
+##       so a tree with no links keeps the same digest as before.
 function(_bm_stamp_tree_sha _root _builddir _out)
 	set_property(GLOBAL PROPERTY _BM_STAMP_ACC "")
 	file(TO_CMAKE_PATH "${_root}" _rootn)
@@ -208,11 +212,17 @@ function(_bm_stamp_tree_sha _root _builddir _out)
 	set(${_out} "${_sum}" PARENT_SCOPE)
 endfunction()
 
-## @brief Recurse `_dir` and append `relpath file-sha256` lines.
+## @brief Recurse `_dir` and append one line per file or symbolic link.
 ## @param[in] _dir   Directory to list.
 ## @param[in] _root  Hash root (relative paths start here).
 ## @param[in] _builddir Normalized build dir, or empty. Skipped when it is
 ##            a real subdirectory of `_root`.
+## @note `IS_SYMLINK` is tested before `IS_DIRECTORY`. CMake reports a
+##       directory link as a directory only after following it; on Windows
+##       that follow is what made `file(SHA256)` return "Permission denied"
+##       for a link such as tessdata `src/configs`. The target text is
+##       stored and not followed, so a link to a directory is not walked
+##       and a dangling link is not opened.
 function(_bm_stamp_walk _dir _root _builddir)
 	file(GLOB _entries LIST_DIRECTORIES true "${_dir}/*" "${_dir}/.*")
 	foreach(_e IN LISTS _entries)
@@ -229,9 +239,31 @@ function(_bm_stamp_walk _dir _root _builddir)
 				AND "${_en}" STREQUAL "${_builddir}")
 			continue()
 		endif()
-		if(IS_DIRECTORY "${_e}" AND NOT IS_SYMLINK "${_e}")
+		if(IS_SYMLINK "${_e}")
+			file(READ_SYMLINK "${_e}" _target)
+			file(RELATIVE_PATH _rel "${_root}" "${_en}")
+			string(REPLACE "\\" "/" _rel "${_rel}")
+			set(_kind "symlink-dangling")
+			if(IS_ABSOLUTE "${_target}")
+				set(_resolved "${_target}")
+			else()
+				get_filename_component(_parent "${_en}" DIRECTORY)
+				set(_resolved "${_parent}/${_target}")
+			endif()
+			file(TO_CMAKE_PATH "${_resolved}" _resolved)
+			if(EXISTS "${_resolved}")
+				if(IS_DIRECTORY "${_resolved}")
+					set(_kind "symlink-directory")
+				else()
+					set(_kind "symlink-file")
+				endif()
+			endif()
+			get_property(_acc GLOBAL PROPERTY _BM_STAMP_ACC)
+			string(APPEND _acc "${_rel} ${_kind} ${_target}\n")
+			set_property(GLOBAL PROPERTY _BM_STAMP_ACC "${_acc}")
+		elseif(IS_DIRECTORY "${_e}")
 			_bm_stamp_walk("${_en}" "${_root}" "${_builddir}")
-		elseif(NOT IS_DIRECTORY "${_e}")
+		else()
 			file(RELATIVE_PATH _rel "${_root}" "${_en}")
 			string(REPLACE "\\" "/" _rel "${_rel}")
 			file(SHA256 "${_en}" _h)

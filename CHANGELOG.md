@@ -23,6 +23,10 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
+### Fixed
+
+- **Stamp tree hashing records symbolic links instead of following them.** `_bm_stamp_walk` checks `IS_SYMLINK` before a directory or a regular file. The digest line is the relative path, the kind (`symlink-file`, `symlink-directory` or `symlink-dangling`) and the target text from `file(READ_SYMLINK)`. The link is not opened and its target is not walked, so a directory link and a dangling link never reach `file(SHA256)`. Retargeting a file link changes the digest even when both targets have the same bytes. A regular file is still `relpath digest`, so a tree with no links does not change key. Harness `stamp-symlinks` covers file links, directory links, dangling links and a changed target.
+
 ### ToDo
 
 - [ ] **`BUILDMASTER_JOBS`.** Cap concurrent BM stage scripts (configure/build/install) independently of `ninja -jN`. Sync log lines so two oficios do not interleave. Needs a portable lock around `_bm_log_message` (Unix + Windows `.ps1` runners). Empty `COMMENT` on `add_custom_command`; banners go through log only. Not part of the link or stamp contract. It hurts more today because every parent build re-enters every stage; after the stamps, the cap only matters on a real miss.
