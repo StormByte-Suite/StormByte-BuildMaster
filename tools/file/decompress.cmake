@@ -86,8 +86,18 @@ function(_bm_file_decompress name archive out_dir)
 		set(ARG_COMMENT "Decompress ${ARG_TITLE}")
 	endif()
 
+	# Several archives share the same prefix (LICENSE, COPYING). file(COPY)
+	# fails if two jobs replace one file while the other stamps its mtime.
+	# Overwrite is fine. The jobs must not overlap. Makefile has no console
+	# pool, so USES_TERMINAL does not serialize it.
+	get_property(_prev_unpack GLOBAL PROPERTY BUILDMASTER_DECOMPRESS_CHAIN)
+	if(_prev_unpack)
+		list(APPEND ARG_DEPENDS "${_prev_unpack}")
+	endif()
+
 	_bm_file_add_target("${name}" "${_script}" "${ARG_COMMENT}"
 		"${ARG_DEPENDS}")
+	set_property(GLOBAL PROPERTY BUILDMASTER_DECOMPRESS_CHAIN "${name}")
 	_bm_log_message(FILE DEBUG "_bm_file_decompress target ${name}")
 	_bm_log_message(FILE LOWLEVEL "Exiting _bm_file_decompress")
 endfunction()

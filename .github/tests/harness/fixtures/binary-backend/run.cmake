@@ -64,6 +64,9 @@ if(NOT _rc EQUAL 0)
 	message(FATAL_ERROR "binary-backend: install widget failed (${_rc})")
 endif()
 
+file(WRITE "${_gadget_prefix}/COPYING.LGPLv3" "shared root from gadget\n")
+file(WRITE "${_widget_prefix}/COPYING.LGPLv3" "shared root from widget\n")
+
 foreach(_zip _gzip _wzip)
 	if(EXISTS "${${_zip}}")
 		file(REMOVE "${${_zip}}")
@@ -158,6 +161,9 @@ if(NOT _rc EQUAL 0)
 endif()
 if(NOT "${_iout}${_ierr}" MATCHES "gadget-bin")
 	message(FATAL_ERROR "binary-backend: widget-bin_install did not extract gadget\n${_iout}\n${_ierr}")
+endif()
+if(NOT EXISTS "${_cons_bin}/bm/install/COPYING.LGPLv3")
+	message(FATAL_ERROR "binary-backend: shared root file missing after unpack")
 endif()
 
 execute_process(

@@ -85,7 +85,7 @@ endfunction()
 ## @note `execute_process(-P script)` runs at configure so FILES= can unpack
 ##       in the same finalize pass. The custom target remains for incremental
 ##       rebuilds. The script must be idempotent.
-function(_bm_file_add_target name script comment)
+function(_bm_file_add_target name script comment depends)
 	_bm_log_message(FILE LOWLEVEL "Entering _bm_file_add_target")
 	if(TARGET "${name}")
 		_bm_log_message(FILE FATAL
