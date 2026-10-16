@@ -22,7 +22,7 @@ jobs:
       - name: Checkout repository
         uses: stormbytepp/githubactions/.github/actions/checkout-cached@master
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           submodules: false
 
       - name: Install Doxygen and Graphviz

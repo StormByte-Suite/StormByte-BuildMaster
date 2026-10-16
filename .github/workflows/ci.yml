@@ -26,7 +26,7 @@ jobs:
       - name: Warm repository + submodule cache
         uses: stormbytepp/githubactions/.github/actions/checkout-cached@master
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           submodules: true
           enable-symlinks: true
 
@@ -57,7 +57,7 @@ jobs:
       - name: Checkout
         uses: stormbytepp/githubactions/.github/actions/checkout-cached@master
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           submodules: true
           enable-symlinks: true
 
@@ -96,7 +96,7 @@ jobs:
       - name: Checkout
         uses: stormbytepp/githubactions/.github/actions/checkout-cached@master
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           submodules: true
           enable-symlinks: true
 
@@ -132,7 +132,7 @@ jobs:
       - name: Checkout
         uses: stormbytepp/githubactions/.github/actions/checkout-cached@master
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           submodules: true
           enable-symlinks: true
 
