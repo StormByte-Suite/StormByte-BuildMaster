@@ -14,8 +14,50 @@ endif()
 
 file(MAKE_DIRECTORY "@_FILE_OUT_DIR@")
 
-file(ARCHIVE_EXTRACT
-	INPUT "${_FILE_ARCHIVE}"
-	DESTINATION "@_FILE_OUT_DIR@"
-)
+if(@_FILE_NORMALIZE_LIBDIR@)
+	set(_stage "@_FILE_STAGE@")
+	file(REMOVE_RECURSE "${_stage}")
+	file(MAKE_DIRECTORY "${_stage}")
+	file(ARCHIVE_EXTRACT
+		INPUT "${_FILE_ARCHIVE}"
+		DESTINATION "${_stage}"
+	)
+	file(GLOB _entries LIST_DIRECTORIES true "${_stage}/*")
+	foreach(_entry IN LISTS _entries)
+		get_filename_component(_name "${_entry}" NAME)
+		if(_name STREQUAL "lib" OR _name STREQUAL "lib64")
+			continue()
+		endif()
+		file(COPY "${_entry}" DESTINATION "@_FILE_OUT_DIR@")
+	endforeach()
+	set(CMAKE_SIZEOF_VOID_P "@CMAKE_SIZEOF_VOID_P@")
+	if(NOT "@_FILE_LIBDIR@" STREQUAL "")
+		set(CMAKE_INSTALL_LIBDIR "@_FILE_LIBDIR@")
+	endif()
+	include(GNUInstallDirs)
+	set(_dest "@_FILE_OUT_DIR@/${CMAKE_INSTALL_LIBDIR}")
+	file(MAKE_DIRECTORY "${_dest}")
+	set(_src "")
+	if(IS_DIRECTORY "${_stage}/${CMAKE_INSTALL_LIBDIR}")
+		set(_src "${_stage}/${CMAKE_INSTALL_LIBDIR}")
+	elseif(IS_DIRECTORY "${_stage}/lib")
+		set(_src "${_stage}/lib")
+	elseif(IS_DIRECTORY "${_stage}/lib64")
+		set(_src "${_stage}/lib64")
+	endif()
+	if(NOT _src STREQUAL "")
+		get_filename_component(_src_name "${_src}" NAME)
+		if(NOT _src_name STREQUAL "${CMAKE_INSTALL_LIBDIR}")
+			_bm_log_message(FILE INFO
+				"Unpacking @_FILE_TITLE@: ${_src_name}/ placed in ${CMAKE_INSTALL_LIBDIR}/")
+		endif()
+		file(COPY "${_src}/" DESTINATION "${_dest}")
+	endif()
+	file(REMOVE_RECURSE "${_stage}")
+else()
+	file(ARCHIVE_EXTRACT
+		INPUT "${_FILE_ARCHIVE}"
+		DESTINATION "@_FILE_OUT_DIR@"
+	)
+endif()
 _bm_log_message(FILE INFO "Unpacking @_FILE_TITLE@... OK")

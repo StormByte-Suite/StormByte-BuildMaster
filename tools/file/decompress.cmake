@@ -10,7 +10,12 @@
 ## @param[in] TITLE   Optional human-readable title.
 ## @param[in] COMMENT Optional custom target COMMENT.
 ## @param[in] DEPENDS Optional list of CMake targets this waits on.
-## @param[in] INDENT  Optional status indent tabs for the generated script.
+## @param[in] NORMALIZE_LIBDIR For a prebuilt install tree. Copy every
+##            top-level entry except `lib/` and `lib64/`, then
+##            `include(GNUInstallDirs)` and copy whichever of those two
+##            exists into `CMAKE_INSTALL_LIBDIR`. A project that already
+##            set that variable keeps it. `FILES=` source trees must not
+##            set this: a source `lib/` is not a libdir.
 ## @note Uses file(ARCHIVE_EXTRACT) inside the generated -P script.
 ##       The script runs at configure (so SOURCE trees exist before nested
 ##       setup) and again if `name` is built. Not a public command.
@@ -27,7 +32,7 @@ function(_bm_file_decompress name archive out_dir)
 	endif()
 
 	cmake_parse_arguments(ARG
-		""
+		"NORMALIZE_LIBDIR"
 		"TITLE;COMMENT;INDENT"
 		"DEPENDS"
 		${ARGN}
@@ -53,6 +58,18 @@ function(_bm_file_decompress name archive out_dir)
 
 	_bm_path_sanitize(_safe "${ARG_TITLE}")
 	set(_script "${BUILDMASTER_SCRIPTS_FILE_DIR}/buildmaster_decompress_${_safe}.cmake")
+
+	if(ARG_NORMALIZE_LIBDIR)
+		set(_FILE_NORMALIZE_LIBDIR 1)
+	else()
+		set(_FILE_NORMALIZE_LIBDIR 0)
+	endif()
+	if(CMAKE_INSTALL_LIBDIR)
+		set(_FILE_LIBDIR "${CMAKE_INSTALL_LIBDIR}")
+	else()
+		set(_FILE_LIBDIR "lib")
+	endif()
+	set(_FILE_STAGE "${BUILDMASTER_SCRIPTS_FILE_DIR}/unpack_${_safe}")
 
 	set(_FILE_ARCHIVE "${_archive}")
 	set(_FILE_OUT_DIR "${out_dir}")

@@ -759,9 +759,11 @@ reused as-is.
 The third argument is an `http://`, `https://` or `file://` URL. The
 fourth argument is ignored. Mode is `static` or `shared`, and `produced`
 is at least one library spec. The component id is an `INTERFACE` target.
-Each produced spec becomes an imported library (`<id>__bm__<name>`) at
-`lib/lib<name>.so` or `.a`, or on Windows the import `.lib` plus
-`bin/<name>.dll`. `ALIAS=` points at the id. `buildmaster_group_add`,
+Each produced spec becomes an imported library (`<id>__bm__<name>`) in
+this machine's libdir. Unpack extracts to a stage, copies everything
+except `lib/` and `lib64/`, then `include(GNUInstallDirs)` and copies
+whichever of those two the archive has into that libdir. On Windows the
+import `.lib` follows it and the `.dll` stays in `bin/`. `ALIAS=` points at the id. `buildmaster_group_add`,
 `buildmaster_depend` and `buildmaster_link` accept the id.
 `buildmaster_link(logger base)` puts `base` on `logger`'s INTERFACE, so
 an executable that links `logger` or its alias also links `base`. It

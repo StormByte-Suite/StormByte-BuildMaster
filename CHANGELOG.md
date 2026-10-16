@@ -26,6 +26,7 @@ If you landed here from a release link and have not read the tree:
 ### Fixed
 
 - **`buildmaster_link` on a `binary` id did not extract the dest.** The link line was already `INTERFACE`: a consumer of `logger` also links `base`. There was no install edge, because a `binary` has no nested fragment to wait on `<dest>_install`. `logger_install` now waits on the dests that `buildmaster_link` and `buildmaster_depend` already record, so the dest archive is downloaded and extracted first. Harness `binary-backend` declares the upper archive first, links it to a lower one, calls a symbol that exists only in the lower archive, and checks that installing the upper id also extracts the lower one.
+- **`BACKEND=binary` unpack follows this machine's libdir.** A release zip built on Ubuntu has `lib/`. A host whose `CMAKE_INSTALL_LIBDIR` is `lib64` looked for the library there and failed. Unpack extracts to a stage, copies every top-level entry except `lib/` and `lib64/`, then `include(GNUInstallDirs)` and copies whichever of those two exists into that libdir. If both exist, the one already named for this machine wins. `FILES=` source trees are unchanged. The harness consumer forces the opposite libdir of the zip.
 
 ### ToDo
 

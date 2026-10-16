@@ -4,7 +4,10 @@
 # Third argument is an http(s) or file URL. The archive is cached under
 # BUILDMASTER_DOWNLOADSDIR by its filename, with no hash: an existing file
 # is a hit. It is extracted into BUILDMASTER_INSTALL_DIR. The archive root
-# must already be the install layout (include/, lib/, bin/).
+# must already be the install layout (include/, lib/ or lib64/, bin/).
+# Unpack copies every top-level entry except lib/ and lib64/, then
+# include(GNUInstallDirs) and places whichever of those two the archive
+# has into that libdir. The imported path stays this machine's libdir.
 
 ## @brief Filename used as the cache key (URL path, query stripped).
 function(_bm_binary_cache_name _url _out_var)
@@ -106,7 +109,8 @@ function(_bm_backend_binary_create _component _component_title _url
 		"${BUILDMASTER_DOWNLOADSDIR}/${_cache_name}"
 		"${BUILDMASTER_INSTALL_DIR}"
 		TITLE "${_component} ${_cache_name}"
-		DEPENDS "${_dl}")
+		DEPENDS "${_dl}"
+		NORMALIZE_LIBDIR)
 
 	set(_names "")
 	set(_files "")

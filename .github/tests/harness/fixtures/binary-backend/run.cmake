@@ -97,12 +97,27 @@ endfunction()
 _bb_file_url("${_gzip}" _gurl)
 _bb_file_url("${_wzip}" _wurl)
 
+file(GLOB _in_lib "${_widget_prefix}/lib/*")
+file(GLOB _in_lib64 "${_widget_prefix}/lib64/*")
+set(_bm_libdir "")
+if(_in_lib AND NOT _in_lib64)
+	set(_bm_libdir "lib64")
+elseif(_in_lib64 AND NOT _in_lib)
+	set(_bm_libdir "lib")
+endif()
+set(_libdir_arg "")
+if(NOT _bm_libdir STREQUAL "")
+	list(APPEND _libdir_arg "-DBM_LIBDIR=${_bm_libdir}")
+	message(STATUS "binary-backend: consumer libdir ${_bm_libdir} (archive used the other)")
+endif()
+
 execute_process(
 	COMMAND ${CMAKE_COMMAND} -S "${_cons_src}" -B "${_cons_bin}"
 		${_gen} ${_cc} ${_cfg}
 		"-DBM_ROOT=${BB_BM_ROOT}"
 		"-DWIDGET_URL=${_wurl}"
 		"-DGADGET_URL=${_gurl}"
+		${_libdir_arg}
 	RESULT_VARIABLE _rc
 	OUTPUT_VARIABLE _out
 	ERROR_VARIABLE _err
@@ -117,6 +132,7 @@ execute_process(
 		"-DBM_ROOT=${BB_BM_ROOT}"
 		"-DWIDGET_URL=${_wurl}"
 		"-DGADGET_URL=${_gurl}"
+		${_libdir_arg}
 	RESULT_VARIABLE _rc
 	OUTPUT_VARIABLE _out2
 	ERROR_VARIABLE _err2
