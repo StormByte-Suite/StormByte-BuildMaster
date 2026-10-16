@@ -23,6 +23,10 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
+### Fixed
+
+- **`buildmaster_link` on a `binary` id did not extract the dest.** The link line was already `INTERFACE`: a consumer of `logger` also links `base`. There was no install edge, because a `binary` has no nested fragment to wait on `<dest>_install`. `logger_install` now waits on the dests that `buildmaster_link` and `buildmaster_depend` already record, so the dest archive is downloaded and extracted first. Harness `binary-backend` declares the upper archive first, links it to a lower one, calls a symbol that exists only in the lower archive, and checks that installing the upper id also extracts the lower one.
+
 ### ToDo
 
 - [ ] **`BUILDMASTER_JOBS`.** Cap concurrent BM stage scripts (configure/build/install) independently of `ninja -jN`. Sync log lines so two oficios do not interleave. Needs a portable lock around `_bm_log_message` (Unix + Windows `.ps1` runners). Empty `COMMENT` on `add_custom_command`; banners go through log only. Not part of the link or stamp contract. It hurts more today because every parent build re-enters every stage; after the stamps, the cap only matters on a real miss.

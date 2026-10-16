@@ -20,18 +20,20 @@ endif()
 
 set(_prod_src "${BB_SRC}/producer")
 set(_prod_bin "${BB_WORK}/producer")
-set(_prod_prefix "${BB_WORK}/prefix")
-set(_zip "${BB_WORK}/widget-binary.zip")
+set(_gadget_prefix "${BB_WORK}/prefix-gadget")
+set(_widget_prefix "${BB_WORK}/prefix-widget")
+set(_gzip "${BB_WORK}/gadget-binary.zip")
+set(_wzip "${BB_WORK}/widget-binary.zip")
 set(_cons_src "${BB_SRC}/consumer")
 set(_cons_bin "${BB_WORK}/consumer")
 
-file(REMOVE_RECURSE "${_prod_bin}" "${_prod_prefix}" "${_cons_bin}")
-file(MAKE_DIRECTORY "${_prod_prefix}")
+file(REMOVE_RECURSE
+	"${_prod_bin}" "${_gadget_prefix}" "${_widget_prefix}" "${_cons_bin}")
+file(MAKE_DIRECTORY "${_gadget_prefix}" "${_widget_prefix}")
 
 execute_process(
 	COMMAND ${CMAKE_COMMAND} -S "${_prod_src}" -B "${_prod_bin}"
 		${_gen} ${_cc} ${_cfg}
-		"-DCMAKE_INSTALL_PREFIX=${_prod_prefix}"
 	RESULT_VARIABLE _rc
 )
 if(NOT _rc EQUAL 0)
@@ -44,37 +46,63 @@ execute_process(
 if(NOT _rc EQUAL 0)
 	message(FATAL_ERROR "binary-backend: producer build failed (${_rc})")
 endif()
+
 execute_process(
-	COMMAND ${CMAKE_COMMAND} --install "${_prod_bin}" --prefix "${_prod_prefix}"
+	COMMAND ${CMAKE_COMMAND} --install "${_prod_bin}"
+		--prefix "${_gadget_prefix}" --component gadget
 	RESULT_VARIABLE _rc
 )
 if(NOT _rc EQUAL 0)
-	message(FATAL_ERROR "binary-backend: producer install failed (${_rc})")
-endif()
-if(EXISTS "${_zip}")
-	file(REMOVE "${_zip}")
+	message(FATAL_ERROR "binary-backend: install gadget failed (${_rc})")
 endif()
 execute_process(
-	COMMAND ${CMAKE_COMMAND} -E tar c "${_zip}" --format=zip -- .
-	WORKING_DIRECTORY "${_prod_prefix}"
+	COMMAND ${CMAKE_COMMAND} --install "${_prod_bin}"
+		--prefix "${_widget_prefix}" --component widget
 	RESULT_VARIABLE _rc
 )
-if(NOT _rc EQUAL 0 OR NOT EXISTS "${_zip}")
-	message(FATAL_ERROR "binary-backend: zip failed (${_rc})")
+if(NOT _rc EQUAL 0)
+	message(FATAL_ERROR "binary-backend: install widget failed (${_rc})")
 endif()
 
-file(TO_CMAKE_PATH "${_zip}" _zip_cmake)
-if(WIN32)
-	set(_url "file:///${_zip_cmake}")
-else()
-	set(_url "file://${_zip_cmake}")
+foreach(_zip _gzip _wzip)
+	if(EXISTS "${${_zip}}")
+		file(REMOVE "${${_zip}}")
+	endif()
+endforeach()
+execute_process(
+	COMMAND ${CMAKE_COMMAND} -E tar c "${_gzip}" --format=zip -- .
+	WORKING_DIRECTORY "${_gadget_prefix}"
+	RESULT_VARIABLE _rc
+)
+if(NOT _rc EQUAL 0 OR NOT EXISTS "${_gzip}")
+	message(FATAL_ERROR "binary-backend: gadget zip failed (${_rc})")
 endif()
+execute_process(
+	COMMAND ${CMAKE_COMMAND} -E tar c "${_wzip}" --format=zip -- .
+	WORKING_DIRECTORY "${_widget_prefix}"
+	RESULT_VARIABLE _rc
+)
+if(NOT _rc EQUAL 0 OR NOT EXISTS "${_wzip}")
+	message(FATAL_ERROR "binary-backend: widget zip failed (${_rc})")
+endif()
+
+function(_bb_file_url path out)
+	file(TO_CMAKE_PATH "${path}" _cmake)
+	if(WIN32)
+		set(${out} "file:///${_cmake}" PARENT_SCOPE)
+	else()
+		set(${out} "file://${_cmake}" PARENT_SCOPE)
+	endif()
+endfunction()
+_bb_file_url("${_gzip}" _gurl)
+_bb_file_url("${_wzip}" _wurl)
 
 execute_process(
 	COMMAND ${CMAKE_COMMAND} -S "${_cons_src}" -B "${_cons_bin}"
 		${_gen} ${_cc} ${_cfg}
 		"-DBM_ROOT=${BB_BM_ROOT}"
-		"-DWIDGET_URL=${_url}"
+		"-DWIDGET_URL=${_wurl}"
+		"-DGADGET_URL=${_gurl}"
 	RESULT_VARIABLE _rc
 	OUTPUT_VARIABLE _out
 	ERROR_VARIABLE _err
@@ -87,7 +115,8 @@ execute_process(
 	COMMAND ${CMAKE_COMMAND} -S "${_cons_src}" -B "${_cons_bin}"
 		${_gen} ${_cc} ${_cfg}
 		"-DBM_ROOT=${BB_BM_ROOT}"
-		"-DWIDGET_URL=${_url}"
+		"-DWIDGET_URL=${_wurl}"
+		"-DGADGET_URL=${_gurl}"
 	RESULT_VARIABLE _rc
 	OUTPUT_VARIABLE _out2
 	ERROR_VARIABLE _err2
@@ -95,9 +124,24 @@ execute_process(
 if(NOT _rc EQUAL 0)
 	message(FATAL_ERROR "binary-backend: consumer reconfigure failed (${_rc})\n${_out2}\n${_err2}")
 endif()
-string(FIND "${_out2}${_err2}" "(cached) OK" _hit)
-if(_hit LESS 0)
-	message(FATAL_ERROR "binary-backend: second configure did not reuse the cached zip\n${_out2}\n${_err2}")
+foreach(_title widget-bin gadget-bin)
+	string(FIND "${_out2}${_err2}" "Downloading ${_title}" _hit)
+	if(_hit LESS 0 OR NOT "${_out2}${_err2}" MATCHES "Downloading ${_title}[^\n]*\\(cached\\) OK")
+		message(FATAL_ERROR "binary-backend: second configure did not reuse ${_title}\n${_out2}\n${_err2}")
+	endif()
+endforeach()
+
+execute_process(
+	COMMAND ${CMAKE_COMMAND} --build "${_cons_bin}" --target widget-bin_install
+	RESULT_VARIABLE _rc
+	OUTPUT_VARIABLE _iout
+	ERROR_VARIABLE _ierr
+)
+if(NOT _rc EQUAL 0)
+	message(FATAL_ERROR "binary-backend: widget-bin_install failed (${_rc})\n${_iout}\n${_ierr}")
+endif()
+if(NOT "${_iout}${_ierr}" MATCHES "gadget-bin")
+	message(FATAL_ERROR "binary-backend: widget-bin_install did not extract gadget\n${_iout}\n${_ierr}")
 endif()
 
 execute_process(

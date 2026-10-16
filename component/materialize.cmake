@@ -110,6 +110,10 @@ function(_bm_materialize_finalize)
 		endforeach()
 	endif()
 
+	if(COMMAND _bm_binary_wire_deps)
+		_bm_binary_wire_deps()
+	endif()
+
 	_bm_repack_materialize()
 	_bm_meta_wire()
 	if(COMMAND _bm_links_write_all)

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 project(widget_consumer LANGUAGES C)
-if(NOT BM_ROOT OR NOT WIDGET_URL)
-	message(FATAL_ERROR "BM_ROOT and WIDGET_URL are required")
+if(NOT BM_ROOT OR NOT WIDGET_URL OR NOT GADGET_URL)
+	message(FATAL_ERROR "BM_ROOT, WIDGET_URL and GADGET_URL are required")
 endif()
 add_subdirectory("${BM_ROOT}" "${CMAKE_BINARY_DIR}/bm")
 include("${BM_ROOT}/helpers.cmake")
@@ -16,7 +16,17 @@ buildmaster_component(
 	widget
 	"BACKEND=binary;ALIAS=Widget::Lib"
 )
-buildmaster_group_add(binaries widget-bin)
+buildmaster_link(widget-bin gadget-bin)
+buildmaster_component(
+	gadget-bin
+	"Gadget prebuilt"
+	"${GADGET_URL}"
+	""
+	shared
+	gadget
+	"BACKEND=binary;ALIAS=Gadget::Lib"
+)
+buildmaster_group_add(binaries widget-bin gadget-bin)
 buildmaster_component(
 	widget-use
 	"Widget use"

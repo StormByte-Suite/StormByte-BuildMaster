@@ -763,7 +763,12 @@ Each produced spec becomes an imported library (`<id>__bm__<name>`) at
 `lib/lib<name>.so` or `.a`, or on Windows the import `.lib` plus
 `bin/<name>.dll`. `ALIAS=` points at the id. `buildmaster_group_add`,
 `buildmaster_depend` and `buildmaster_link` accept the id.
-`<id>_install` is the extract.
+`buildmaster_link(logger base)` puts `base` on `logger`'s INTERFACE, so
+an executable that links `logger` or its alias also links `base`. It
+also makes `logger_install` wait on `base_install`: building or
+installing `logger` downloads and extracts `base` first. A plain
+`buildmaster_depend` orders the extract the same way and does not add
+a link line. `<id>_install` is the extract.
 
 `NOINSTALL`, `REPACK`, `WHOLE`, `FILES=`, `GIT=`, `SOURCE=` and meta
 membership are FATAL. `headers` and `executable` are FATAL.
