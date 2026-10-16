@@ -30,6 +30,7 @@ If you landed here from a release link and have not read the tree:
 ### Fixed
 
 - **File-tool paths were never initialized.** `tools/file/init_vars.cmake` was not included, so `BUILDMASTER_TOOLS_FILE_SRCDIR` was empty and a cached download looked for `/templates/file_download.cmake.in`. `tools/file/helpers.cmake` includes it. The same include exports the path into the toolchain.
+- **Harness `binary-backend` finds `widget_drive.exe` on Windows.** The driver is `cmake -P`, which does not set `CMAKE_EXECUTABLE_SUFFIX`. The consumer project writes the real executable path, and the driver runs that path.
 - **Stamp tree hashing records symbolic links instead of following them.** `_bm_stamp_walk` checks `IS_SYMLINK` before a directory or a regular file. The digest line is the relative path, the kind (`symlink-file`, `symlink-directory` or `symlink-dangling`) and the target text from `file(READ_SYMLINK)`. The link is not opened and its target is not walked, so a directory link and a dangling link never reach `file(SHA256)`. Retargeting a file link changes the digest even when both targets have the same bytes. A regular file is still `relpath digest`, so a tree with no links does not change key. Harness `stamp-symlinks` covers file links, directory links, dangling links and a changed target.
 
 ### ToDo
