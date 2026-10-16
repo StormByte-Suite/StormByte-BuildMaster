@@ -59,6 +59,7 @@ BuildMaster is that layer, written once:
 | `shlwapi` on every consumer because a static `.lib` does not record it | `LINK={…}` on the producer (or the meta) |
 | `undefined pq` after linking `Database.a` — and the urge to `REPACK` the world | `links/<id>_static.txt` (see [Static archives](#static-archives-and-the-sidecar)) |
 | A static library whose system or BuildMaster links vanish at the final executable | `BACKEND=host`: keep a real CMake target and let its public link requirements travel |
+| A submodule you compile on every machine when a release zip already exists | `BACKEND=binary`: download that archive, extract it into the prefix, link the imported library |
 | `/FORCE:MULTIPLE` on the **parent** because one leaf needed it | `LINKFLAGS={…}` on **that** leaf (not inherited) |
 | Parent `-flto` / `/GL` leaking into a leaf that cannot probe under LTO | `IPO=off` on that leaf (or `IPO=fat` when you still need real objects) |
 | Hand-written `.pc` so the next Meson node finds this prefix | `PC={…}` on the leaf |
@@ -166,6 +167,8 @@ For nested CMake/Meson backends, the backend is inferred from `srcdir`
 Those stage targets and the `INTERFACE` stub named `mylib` exist when
 registration returns; produced paths are filled in at the end of
 `CMAKE_SOURCE_DIR`. `BACKEND=host` instead creates a real target immediately.
+`BACKEND=binary` does not compile anything: the third argument is a URL and
+the archive is extracted into the shared prefix.
 
 The fourth argument is a **CMake list** of `KEY=value` (a single string
 is a one-element list). For nested CMake/Meson components it is
@@ -238,7 +241,7 @@ Ten commands. If you need an eleventh, the optstr is lying or the graph is.
 
 | Command | Role |
 |---------|------|
-| `buildmaster_component(id title srcdir-or-sources options mode produced [optstr])` | Factory. Backend from `srcdir`, or an in-process target with `BACKEND=host`. No builddir |
+| `buildmaster_component(id title srcdir-or-sources options mode produced [optstr])` | Factory. Backend from `srcdir`, an in-process target with `BACKEND=host`, or a prebuilt archive with `BACKEND=binary`. No builddir |
 | `buildmaster_depend(source dest)` | Order-only edge |
 | `buildmaster_link(source dest [dest…])` | Link on the component target **and** a depend edge when `dest` is a graph node. Aliases resolve to ids |
 | `buildmaster_meta(id title [, optstr])` | `INTERFACE` collection. `REPACK` publishes one merged static archive |
@@ -276,12 +279,17 @@ anchors; `_build` depends on the library and `_install` depends on `_build`.
 You can use `target_include_directories`, `target_compile_options`, properties,
 and other ordinary CMake commands immediately after `buildmaster_component`.
 
+`BACKEND=binary` is the other non-building mode. `<id>` stays `INTERFACE`.
+There is no nested configure and no compile. `<id>_install` extracts a
+prebuilt archive into the shared prefix and the produced names are imported
+libraries on that interface.
+
 | Target | Role |
 |--------|------|
-| `<id>` | Nested backend: `INTERFACE`, depending on `<id>_install`. Host: real `STATIC` / `SHARED` library, available immediately. |
-| `<id>_configure` | Nested CMake or Meson setup; empty ordering anchor for host |
-| `<id>_build` | Nested compile; for host, depends on the real parent-project library target |
-| `<id>_install` | Nested backend publishes into the shared prefix and runs oficios. Host: empty anchor depending on `_build`; use normal parent CMake `install()` rules to publish it |
+| `<id>` | Nested backend: `INTERFACE`, depending on `<id>_install`. Host: real `STATIC` / `SHARED` library, available immediately. Binary: `INTERFACE` whose link interface is the imported prebuilt library. |
+| `<id>_configure` | Nested CMake or Meson setup; empty ordering anchor for host and binary |
+| `<id>_build` | Nested compile; for host, depends on the real parent-project library target. Binary: waits on the cached download |
+| `<id>_install` | Nested backend publishes into the shared prefix and runs oficios. Host: empty anchor depending on `_build`; use normal parent CMake `install()` rules to publish it. Binary: extracts the archive into the prefix |
 | produced libs | Nested backend: `STATIC` / `SHARED` **IMPORTED** files under the prefix (or build dir). Host: real parent-project library target |
 | produced exe | File under `BINDIR` (or the build dir). No `IMPORTED` executable on `<id>` |
 
@@ -732,20 +740,30 @@ and `LINK=` requirements propagate to the final consumer.
 
 ### Prebuilt archive (`BACKEND=binary`)
 
-Use this when the library is already built. The third argument is an
-`http://`, `https://` or `file://` URL, not a directory. The fourth
-argument is ignored. Mode is `static` or `shared`, and `produced` is at
-least one library spec. The filename at the end of the URL is the cache
-key under `<BUILDMASTER_DATADIR>/downloads`. There is no hash: a file
-already there is a hit. The archive is extracted into the shared install
-prefix. Its root must already be that layout (`include/`, `lib/`, `bin/`).
+Use this when the library is already built and you have a zip of its
+install tree. It replaces a submodule you would otherwise compile.
+StormByte Base consumed by Config is the case: download the platform
+zip, extract it into the shared prefix, link `StormByte::Base`.
 
-The component id is an INTERFACE target. Each produced spec becomes an
-IMPORTED library (`<id>__bm__<name>`) whose location is the prefix
-artifact (`lib/lib<name>.so` / `.a`, or on Windows the import `.lib` plus
-`bin/<name>.dll`). `ALIAS=` points at the id, so consumers link the alias.
-`buildmaster_group_add`, `buildmaster_depend` and `buildmaster_link`
-accept the id. `<id>_install` is the extract.
+It is not `BACKEND=host`. Host compiles sources you own into a real
+target in this CMake project. Binary never sees sources and never
+compiles. It is not `BACKEND=cmake` or `BACKEND=meson`, and it is not
+`FILES=`: `FILES=` fetches a tree so a backend can build it. Binary
+consumes an archive whose root is already `include/`, `lib/` and `bin/`.
+It does not carry static link requirements the way a host target does.
+An imported `.a` still forgets `pq`; put those names on `LINK=` if the
+consumer must see them. It is not a hash check: the cache key is the
+filename, and a file already in `<BUILDMASTER_DATADIR>/downloads` is
+reused as-is.
+
+The third argument is an `http://`, `https://` or `file://` URL. The
+fourth argument is ignored. Mode is `static` or `shared`, and `produced`
+is at least one library spec. The component id is an `INTERFACE` target.
+Each produced spec becomes an imported library (`<id>__bm__<name>`) at
+`lib/lib<name>.so` or `.a`, or on Windows the import `.lib` plus
+`bin/<name>.dll`. `ALIAS=` points at the id. `buildmaster_group_add`,
+`buildmaster_depend` and `buildmaster_link` accept the id.
+`<id>_install` is the extract.
 
 `NOINSTALL`, `REPACK`, `WHOLE`, `FILES=`, `GIT=`, `SOURCE=` and meta
 membership are FATAL. `headers` and `executable` are FATAL.
