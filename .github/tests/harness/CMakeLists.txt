@@ -209,6 +209,7 @@ add_custom_target(run_buildmaster_smoke
 		mode_switch_run
 		# BUILDMASTER_DATADIR (-D / ENV / default, nested, cache reuse)
 		datadir_run
+		binary_backend_run
 		# Rename
 		rename-variant_install rename_variant_link_test
 		# Repack (NOINSTALL phases + REPACK meta)

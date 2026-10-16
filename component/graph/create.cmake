@@ -12,12 +12,16 @@
 ##            only until apply rewrites SRCDIR.
 ## @param[in] _options Options forwarded to internal stage generators.
 ## @param[in] _library_mode `static`, `shared`, `headers`, or `executable`.
-## @param[in] _build_system `cmake`, `meson`, `none`, `pending`, or `host`.
+## @param[in] _build_system `cmake`, `meson`, `none`, `pending`, `host`,
+##            or `binary`.
 ##            `pending` means FILES SOURCE will unpack the tree and
 ##            autodetect runs after apply. `none` is valid for `headers`,
 ##            or for any mode when `NOINSTALL` is set (no nested generate).
 ##            `host` creates its real library in the factory after graph
 ##            registration, without an INTERFACE stub.
+##            `binary` keeps the INTERFACE stub. The factory downloads the
+##            URL, extracts it into the install prefix and attaches IMPORTED
+##            libraries. Git is not applied.
 ## @param[in] _produced Primary specs (`<name>` or `<subdir>/<name>`).
 ##            Empty for headers mode. Libraries: archive/soname stems.
 ##            `executable`: binary stems (Unix `bin/<stem>`, Windows
@@ -189,9 +193,10 @@ function(_bm_graph_create _component _component_title _srcdir
 			AND NOT _build_system STREQUAL "meson"
 			AND NOT _build_system STREQUAL "none"
 			AND NOT _build_system STREQUAL "pending"
-			AND NOT _build_system STREQUAL "host")
+			AND NOT _build_system STREQUAL "host"
+			AND NOT _build_system STREQUAL "binary")
 		_bm_log_message(COMPONENT FATAL
-			"_bm_graph_create: unknown build system '${_build_system}' (expected cmake, meson, none, pending, or host)")
+			"_bm_graph_create: unknown build system '${_build_system}' (expected cmake, meson, none, pending, host, or binary)")
 	endif()
 
 	if(_build_system STREQUAL "none" AND NOT _library_mode STREQUAL "headers")
@@ -402,7 +407,7 @@ function(_bm_graph_create _component _component_title _srcdir
 	if("${_git_wd}" STREQUAL "")
 		set(_git_wd "${_srcdir}")
 	endif()
-	if(NOT _build_system STREQUAL "host")
+	if(NOT _build_system STREQUAL "host" AND NOT _build_system STREQUAL "binary")
 		_bm_comp_apply_git(
 			"${_component}" "${_component_title}" "${_git_wd}" "${_options_string}")
 	endif()

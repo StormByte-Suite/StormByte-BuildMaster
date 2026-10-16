@@ -41,6 +41,7 @@ add_subdirectory(exe/meson)
 add_subdirectory(datadir)
 add_subdirectory(file-decompress)
 add_subdirectory(file-to-component)
+add_subdirectory(binary-backend)
 
 # ---------------------------------------------------------------------------
 # Flat graph (base → dep, headers → loader)

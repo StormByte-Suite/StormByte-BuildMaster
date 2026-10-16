@@ -23,8 +23,13 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
+### Added
+
+- **`BACKEND=binary` publishes a prebuilt archive into the shared prefix.** The third argument of `buildmaster_component` is an `http://`, `https://` or `file://` URL. The filename is the cache key under `<BUILDMASTER_DATADIR>/downloads`; an existing file is a hit and there is no hash. The archive is extracted into the install prefix and must already be that layout. Mode is `static` or `shared`. Each produced spec becomes an IMPORTED library on the component id (`lib/lib<name>.so` or `.a`; on Windows the import library plus `bin/<name>.dll`). `ALIAS=` points at the id. `buildmaster_group_add`, `buildmaster_depend` and `buildmaster_link` accept the id. `NOINSTALL`, `REPACK`, `WHOLE`, `FILES=`, `GIT=`, `SOURCE=`, `headers`, `executable` and meta membership are FATAL. The fourth argument is ignored. Harness `binary-backend` builds a shared library, installs it, zips that prefix and links and runs an executable against the zip. Negative configures cover the FATAL flags.
+
 ### Fixed
 
+- **File-tool paths were never initialized.** `tools/file/init_vars.cmake` was not included, so `BUILDMASTER_TOOLS_FILE_SRCDIR` was empty and a cached download looked for `/templates/file_download.cmake.in`. `tools/file/helpers.cmake` includes it. The same include exports the path into the toolchain.
 - **Stamp tree hashing records symbolic links instead of following them.** `_bm_stamp_walk` checks `IS_SYMLINK` before a directory or a regular file. The digest line is the relative path, the kind (`symlink-file`, `symlink-directory` or `symlink-dangling`) and the target text from `file(READ_SYMLINK)`. The link is not opened and its target is not walked, so a directory link and a dangling link never reach `file(SHA256)`. Retargeting a file link changes the digest even when both targets have the same bytes. A regular file is still `relpath digest`, so a tree with no links does not change key. Harness `stamp-symlinks` covers file links, directory links, dangling links and a changed target.
 
 ### ToDo

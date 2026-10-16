@@ -205,7 +205,8 @@ function(_bm_materialize_inject_linkflags)
 			continue()
 		endif()
 		get_property(_sys GLOBAL PROPERTY BUILDMASTER_COMPONENT_${_id}_SYSTEM)
-		if(_sys STREQUAL "none" OR _sys STREQUAL "" OR _sys STREQUAL "pending")
+		if(_sys STREQUAL "none" OR _sys STREQUAL "" OR _sys STREQUAL "pending"
+				OR _sys STREQUAL "binary")
 			_bm_log_message(COMPONENT NOTICE
 				"'${_id}': LINKFLAGS not applied (no cmake/meson backend)")
 			continue()

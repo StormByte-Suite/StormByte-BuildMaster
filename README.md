@@ -680,10 +680,10 @@ When `srcdir` (after `SOURCE=`) contains both `CMakeLists.txt` and
 ```
 
 Allowed names live in `BUILDMASTER_FACTORY_BACKENDS` (`cmake`, `meson`,
-`host` in this release). Empty or unknown: FATAL. `host` is a BuildMaster
-mode, not a third-party build generator. There is no `BACKEND=none`
-— that is `headers` without a backend, or `NOINSTALL` when you truly
-have no generator.
+`host`, `binary` in this release). Empty or unknown: FATAL. `host` and
+`binary` are BuildMaster modes, not third-party build generators. There
+is no `BACKEND=none` — that is `headers` without a backend, or
+`NOINSTALL` when you truly have no generator.
 
 ### In-process CMake mode (`BACKEND=host`)
 
@@ -729,6 +729,39 @@ library should be published by the parent project's install step.
 them after every component has materialized, so declaration order does not
 constrain host dependencies. On static host targets, both component links
 and `LINK=` requirements propagate to the final consumer.
+
+### Prebuilt archive (`BACKEND=binary`)
+
+Use this when the library is already built. The third argument is an
+`http://`, `https://` or `file://` URL, not a directory. The fourth
+argument is ignored. Mode is `static` or `shared`, and `produced` is at
+least one library spec. The filename at the end of the URL is the cache
+key under `<BUILDMASTER_DATADIR>/downloads`. There is no hash: a file
+already there is a hit. The archive is extracted into the shared install
+prefix. Its root must already be that layout (`include/`, `lib/`, `bin/`).
+
+The component id is an INTERFACE target. Each produced spec becomes an
+IMPORTED library (`<id>__bm__<name>`) whose location is the prefix
+artifact (`lib/lib<name>.so` / `.a`, or on Windows the import `.lib` plus
+`bin/<name>.dll`). `ALIAS=` points at the id, so consumers link the alias.
+`buildmaster_group_add`, `buildmaster_depend` and `buildmaster_link`
+accept the id. `<id>_install` is the extract.
+
+`NOINSTALL`, `REPACK`, `WHOLE`, `FILES=`, `GIT=`, `SOURCE=` and meta
+membership are FATAL. `headers` and `executable` are FATAL.
+
+```cmake
+buildmaster_component(
+	StormByte-Base
+	"StormByte Suite - Base"
+	"https://github.com/StormByte-Suite/StormByte/releases/download/2.1.0/StormByte-2.1.0-linux-x64-libstdc++.zip"
+	""
+	shared
+	"StormByte"
+	"BACKEND=binary;ALIAS=StormByte::Base"
+)
+buildmaster_link(mylib StormByte-Base)
+```
 
 ---
 

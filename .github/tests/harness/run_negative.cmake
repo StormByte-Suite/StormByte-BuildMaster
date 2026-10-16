@@ -34,6 +34,11 @@ set(_cfg_cases
 	ipo-bad
 	group-undefined
 	alias-reuse-conflict
+	binary-noinstall
+	binary-repack
+	binary-whole
+	binary-headers
+	binary-meta
 )
 set(_ins_cases pc-clobber)
 set(_failed 0)

@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.21)
+project(widgetuse LANGUAGES C)
+include(GNUInstallDirs)
+add_library(widgetuse STATIC use.c)
+find_library(widget_lib widget REQUIRED)
+target_link_libraries(widgetuse PUBLIC "${widget_lib}")
+install(TARGETS widgetuse ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})

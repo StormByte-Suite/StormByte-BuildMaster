@@ -31,6 +31,8 @@ function(_bm_materialize_one id)
 		_bm_materialize_none("${id}")
 	elseif(_sys STREQUAL "host")
 		_bm_backend_host_materialize("${id}")
+	elseif(_sys STREQUAL "binary")
+		_bm_backend_binary_materialize("${id}")
 	else()
 		_bm_log_message(COMPONENT FATAL
 			"finalize: unknown system '${_sys}' for '${id}'")
@@ -82,6 +84,9 @@ function(_bm_materialize_finalize)
 	endif()
 
 	_bm_meta_stamp_noinstall()
+	if(COMMAND _bm_binary_reject_meta)
+		_bm_binary_reject_meta()
+	endif()
 	_bm_repack_register_components()
 
 	_bm_materialize_inject_private_headers()

@@ -320,7 +320,7 @@ function(buildmaster_component _component _component_title _srcdir
 			elseif(_key STREQUAL "BACKEND")
 				if("${_val}" STREQUAL "")
 					_bm_log_message(COMPONENT FATAL
-						"buildmaster_component('${_component}'): BACKEND= requires cmake, meson, or host")
+						"buildmaster_component('${_component}'): BACKEND= requires cmake, meson, host, or binary")
 				endif()
 				set(_opt_backend "${_val}")
 			endif()
@@ -330,6 +330,16 @@ function(buildmaster_component _component _component_title _srcdir
 	string(TOLOWER "${_opt_backend}" _opt_backend_lower)
 	if(_opt_backend_lower STREQUAL "host")
 		_bm_backend_host_create(
+			"${_component}" "${_component_title}" "${_srcdir}"
+			"${_options}" "${_library_mode}" "${_produced}"
+			"${_options_string}")
+		set_property(GLOBAL PROPERTY
+			BUILDMASTER_COMPONENT_${_component}_FACTORY_OPTIONS "${_options}")
+		_bm_log_message(COMPONENT LOWLEVEL "Exiting buildmaster_component")
+		return()
+	endif()
+	if(_opt_backend_lower STREQUAL "binary")
+		_bm_backend_binary_create(
 			"${_component}" "${_component_title}" "${_srcdir}"
 			"${_options}" "${_library_mode}" "${_produced}"
 			"${_options_string}")
