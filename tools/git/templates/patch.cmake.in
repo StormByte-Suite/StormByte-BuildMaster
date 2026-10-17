@@ -3,6 +3,22 @@ if(COMMAND _bm_log_level_init)
 	_bm_log_level_init()
 endif()
 
+# A second configure of the same checkout (ENABLE_PGO trains in another
+# build directory) finds the series already applied. Reverse-check is a
+# no-op when it is, and a normal apply when it is not. A partial series
+# still fails the forward apply below.
+execute_process(
+	COMMAND @ENV_GIT_SILENT_COMMAND@ apply --reverse --check @GIT_PATCHES@
+	WORKING_DIRECTORY @GIT_REPO@
+	RESULT_VARIABLE GIT_ALREADY
+	OUTPUT_VARIABLE GIT_ALREADY_OUT
+	ERROR_VARIABLE GIT_ALREADY_ERR
+)
+if(GIT_ALREADY EQUAL 0)
+	_bm_log_message(GIT STATUS "Patch already applied @GIT_PATCHES_DISPLAY@")
+	return()
+endif()
+
 execute_process(
 	COMMAND @ENV_GIT_SILENT_COMMAND@ apply @GIT_PATCHES@
 	WORKING_DIRECTORY @GIT_REPO@

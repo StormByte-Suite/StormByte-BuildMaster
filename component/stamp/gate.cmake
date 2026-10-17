@@ -307,6 +307,17 @@ endfunction()
 ## @param[in] _repo  Work tree.
 ## @param[in] _patch Absolute patch path.
 function(_bm_stamp_git_apply _repo _patch)
+	# Same worktree as a parent configure that already applied this patch.
+	# --reverse --check succeeds only when the series is already present.
+	execute_process(
+		COMMAND ${BM_STAMP_GIT} -C "${_repo}" apply --reverse --check "${_patch}"
+		RESULT_VARIABLE _rev
+		OUTPUT_VARIABLE _out
+		ERROR_VARIABLE _err
+	)
+	if(_rev EQUAL 0)
+		return()
+	endif()
 	execute_process(
 		COMMAND ${BM_STAMP_GIT} -C "${_repo}" apply "${_patch}"
 		RESULT_VARIABLE _rc
