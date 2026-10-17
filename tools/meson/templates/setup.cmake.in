@@ -109,7 +109,7 @@ if(NOT EXISTS "@_MESON_BUILD_DIR@/build.ninja")
 		"-Dc_args=@_MESON_C_ARGS@"
 		"-Dcpp_args=@_MESON_CXX_ARGS@"
 		"-Dc_link_args=@_MESON_LINK_ARGS@"
-		"-Dcpp_link_args=@_MESON_LINK_ARGS@"
+		"-Dcpp_link_args=@_MESON_CPP_LINK_ARGS@"
 		"-Dbuildtype=@MESON_BUILD_TYPE@"
 		"-Ddefault_library=@_MESON_LIBRARY_TYPE@"
 		"--prefix=@BUILDMASTER_INSTALL_DIR@"

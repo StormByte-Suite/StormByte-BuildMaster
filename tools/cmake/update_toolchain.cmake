@@ -60,6 +60,11 @@ if(DEFINED CMAKE_MODULE_LINKER_FLAGS AND NOT "${CMAKE_MODULE_LINKER_FLAGS}" STRE
 	_bm_tc_export_raw(
 		"set(CMAKE_MODULE_LINKER_FLAGS \"${_bm_mlf}\" CACHE STRING \"\" FORCE)")
 endif()
+if(DEFINED CMAKE_CXX_STANDARD_LIBRARIES AND NOT "${CMAKE_CXX_STANDARD_LIBRARIES}" STREQUAL "")
+	string(REPLACE "\"" "\\\"" _bm_cxxstdlib "${CMAKE_CXX_STANDARD_LIBRARIES}")
+	_bm_tc_export_raw(
+		"set(CMAKE_CXX_STANDARD_LIBRARIES \"${_bm_cxxstdlib}\" CACHE STRING \"\" FORCE)")
+endif()
 
 # Archiver / ranlib / nm (llvm-lib for clang-cl LTO static archives)
 if(DEFINED CMAKE_AR AND NOT "${CMAKE_AR}" STREQUAL "")

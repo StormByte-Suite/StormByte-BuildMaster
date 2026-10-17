@@ -274,6 +274,10 @@ function(_bm_tools_meson_stages _file_setup _file_compile _file_install _compone
 	if(NOT DEFINED CMAKE_EXE_LINKER_FLAGS)
 		set(CMAKE_EXE_LINKER_FLAGS "")
 	endif()
+	if(NOT DEFINED CMAKE_CXX_STANDARD_LIBRARIES)
+		set(CMAKE_CXX_STANDARD_LIBRARIES "")
+	endif()
+	string(STRIP "${CMAKE_CXX_STANDARD_LIBRARIES}" CMAKE_CXX_STANDARD_LIBRARIES)
 	set(_MESON_LINK_ARGS "${CMAKE_EXE_LINKER_FLAGS}")
 
 	if(NOT DEFINED CMAKE_C_FLAGS)
@@ -453,6 +457,27 @@ function(_bm_tools_meson_stages _file_setup _file_compile _file_install _compone
 	set(_MESON_C_ARGS "${CMAKE_C_FLAGS}")
 	set(_MESON_CXX_ARGS "${CMAKE_CXX_FLAGS}")
 	_bm_tools_meson_apply_ipo_and_group(_MESON_C_ARGS _MESON_CXX_ARGS _MESON_LINK_ARGS)
+	# CMAKE_CXX_STANDARD_LIBRARIES is C++ only. Meson has no such variable;
+	# cpp_link_args is the link line it belongs on. c_link_args stays without it.
+	# A later -Dcpp_link_args in OPTIONS replaces the one above, so those
+	# copies get the same tokens.
+	set(_MESON_CPP_LINK_ARGS "${_MESON_LINK_ARGS}")
+	if(NOT CMAKE_CXX_STANDARD_LIBRARIES STREQUAL "")
+		string(APPEND _MESON_CPP_LINK_ARGS " ${CMAKE_CXX_STANDARD_LIBRARIES}")
+		string(STRIP "${_MESON_CPP_LINK_ARGS}" _MESON_CPP_LINK_ARGS)
+		set(_bm_opts_patched "")
+		foreach(_bm_opt IN LISTS _meson_options)
+			if(_bm_opt MATCHES "^-Dcpp_link_args=")
+				string(REGEX REPLACE "^-Dcpp_link_args=" "" _bm_opt_val "${_bm_opt}")
+				string(STRIP "${_bm_opt_val} ${CMAKE_CXX_STANDARD_LIBRARIES}" _bm_opt_val)
+				list(APPEND _bm_opts_patched "-Dcpp_link_args=${_bm_opt_val}")
+			else()
+				list(APPEND _bm_opts_patched "${_bm_opt}")
+			endif()
+		endforeach()
+		set(_meson_options "${_bm_opts_patched}")
+		_bm_list_join(_MESON_OPTIONS "${_meson_options}" " ")
+	endif()
 
 	if(MSVC OR _toolchain_name STREQUAL "msvc" OR _toolchain_name STREQUAL "clang-cl"
 			OR CMAKE_C_COMPILER MATCHES "clang-cl" OR CMAKE_CXX_COMPILER MATCHES "clang-cl")

@@ -37,6 +37,7 @@ If you landed here from a release link and have not read the tree:
 
 ### Fixed
 
+- Nested CMake receives `CMAKE_CXX_STANDARD_LIBRARIES` (`-DCMAKE_CXX_STANDARD_LIBRARIES` and the toolchain file). Nested Meson has no variable of that name; the same text is appended only to `cpp_link_args`, including a later `-Dcpp_link_args` in the component options. `c_link_args` is unchanged. The stamp records the value, so a build tree from 2.1.1 reconfigures once.
 - `GIT PATCH` applies once. `git apply --reverse --check` sees a series that is already in the worktree and skips it. A second configure of the same checkout (PGO training) no longer fails with "patch does not apply". The stamp path does the same for a single patch.
 
 [2.1.1]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/2.1.0...2.1.1

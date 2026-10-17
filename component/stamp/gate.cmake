@@ -109,6 +109,7 @@ cxx_flags_bt=${CMAKE_CXX_FLAGS_${_bt}}
 exe_ldflags=${CMAKE_EXE_LINKER_FLAGS}
 shared_ldflags=${CMAKE_SHARED_LINKER_FLAGS}
 module_ldflags=${CMAKE_MODULE_LINKER_FLAGS}
+cxx_standard_libraries=${CMAKE_CXX_STANDARD_LIBRARIES}
 linker_type=${CMAKE_LINKER_TYPE}
 linker=${CMAKE_LINKER}
 msvc_runtime=${CMAKE_MSVC_RUNTIME_LIBRARY}
