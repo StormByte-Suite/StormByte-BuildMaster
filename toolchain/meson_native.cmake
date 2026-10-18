@@ -62,6 +62,32 @@ function(_bm_tc_meson_native_resolve_launcher out_var)
 	_bm_log_message(TOOLCHAIN LOWLEVEL "Exiting _bm_tc_meson_native_resolve_launcher")
 endfunction()
 
+## @brief Point Meson at a wrapper around @p real for Apple one-shot -flto.
+## @param[out] out_var Parent-scope path of the wrapper (the new compiler).
+## @param[in] real Real compiler path or short name.
+## @param[in] tag Filename stem, unique per profile and language.
+function(_bm_tc_apple_lto_wrapper out_var real tag)
+	_bm_log_message(TOOLCHAIN LOWLEVEL "Entering _bm_tc_apple_lto_wrapper")
+	set(_dir "${BUILDMASTER_SCRIPTSDIR}/meson")
+	file(MAKE_DIRECTORY "${_dir}")
+	set(_path "${_dir}/apple-lto-oneshot-${tag}.sh")
+	_bm_path_normalize(_path "${_path}")
+	set(_impl "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/apple_lto_oneshot.sh")
+	if(NOT EXISTS "${_impl}")
+		_bm_log_message(TOOLCHAIN FATAL
+			"apple_lto_oneshot.sh is missing next to meson_native.cmake")
+	endif()
+	file(CHMOD "${_impl}"
+		FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+			GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+	file(WRITE "${_path}" "#!/bin/bash\nexec \"${_impl}\" \"${real}\" \"$@\"\n")
+	file(CHMOD "${_path}"
+		FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+			GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+	set(${out_var} "${_path}" PARENT_SCOPE)
+	_bm_log_message(TOOLCHAIN LOWLEVEL "Exiting _bm_tc_apple_lto_wrapper")
+endfunction()
+
 ## @brief Meson [built-in options] lines for the shared BM prefix.
 ## @param[out] out_block Parent-scope text (may be empty).
 ## @param[in]  profile_key `default` / `gcc` / `clang` / `clang-cl` / `msvc`.
@@ -213,6 +239,15 @@ function(_bm_tc_write_meson_native_file profile_key c_compiler cxx_compiler)
 	endif()
 	if(c_compiler STREQUAL "")
 		set(c_compiler "${cxx_compiler}")
+	endif()
+
+	# Apple Clang 21 aborts Meson probes (`clang file.c -o out -flto`) with
+	# "LLVM ERROR: Unexistent dir". The wrapper splits that one command into
+	# -c and a link. -c builds and ordinary links are passed through, so LTO
+	# stays on. Not used for ar/ld.
+	if(APPLE AND NOT c_compiler MATCHES "apple-lto-oneshot")
+		_bm_tc_apple_lto_wrapper(c_compiler "${c_compiler}" "${_label}-c")
+		_bm_tc_apple_lto_wrapper(cxx_compiler "${cxx_compiler}" "${_label}-cpp")
 	endif()
 
 	_bm_tc_meson_native_bin_line(_line_c   "c"   "${c_compiler}"   "${_launcher}")
