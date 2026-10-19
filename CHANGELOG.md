@@ -23,10 +23,6 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
-### Fixed
-
-- Apple Clang's one-shot `-flto` wrapper now forwards `-fprofile-generate` and `-fprofile-use` to the link step as well as the compile. Those flags were classified with the other `-f*` options, so a Meson probe linked an instrumented static archive without the profile runtime and reported `___llvm_profile_instrument_target` as a missing symbol. FFmpeg then treated libvpx as absent.
-
 ### ToDo
 
 - [ ] **`BUILDMASTER_JOBS`.** Cap concurrent BM stage scripts (configure/build/install) independently of `ninja -jN`. Sync log lines so two oficios do not interleave. Needs a portable lock around `_bm_log_message` (Unix + Windows `.ps1` runners). Empty `COMMENT` on `add_custom_command`; banners go through log only. Not part of the link or stamp contract. It hurts more today because every parent build re-enters every stage; after the stamps, the cap only matters on a real miss.
@@ -42,6 +38,7 @@ If you landed here from a release link and have not read the tree:
 ### Fixed
 
 - Meson on Apple Clang no longer feeds a one-shot `clang file.c -o out -flto` to the linker. Xcode 26 aborts that with `LLVM ERROR: Unexistent dir: …/cc-*.o`, so FFmpeg's bzip2 probe failed while `b_lto` was on. The native-file compiler is a wrapper that compiles with `-c` and then links, and only for that one-shot. The object stays where the source was, so a following static archive is still scanned. A normal `-c` build and the final link are unchanged, so LTO stays on.
+- Apple Clang's one-shot `-flto` wrapper now forwards `-fprofile-generate` and `-fprofile-use` to the link step as well as the compile. Those flags were classified with the other `-f*` options, so a Meson probe linked an instrumented static archive without the profile runtime and reported `___llvm_profile_instrument_target` as a missing symbol. FFmpeg then treated libvpx as absent.
 
 [2.1.2]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/2.1.1...2.1.2
 
