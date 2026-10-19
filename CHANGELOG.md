@@ -23,6 +23,10 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
+### Fixed
+
+- Apple Clang's one-shot `-flto` wrapper now forwards `-fprofile-generate` and `-fprofile-use` to the link step as well as the compile. Those flags were classified with the other `-f*` options, so a Meson probe linked an instrumented static archive without the profile runtime and reported `___llvm_profile_instrument_target` as a missing symbol. FFmpeg then treated libvpx as absent.
+
 ### ToDo
 
 - [ ] **`BUILDMASTER_JOBS`.** Cap concurrent BM stage scripts (configure/build/install) independently of `ninja -jN`. Sync log lines so two oficios do not interleave. Needs a portable lock around `_bm_log_message` (Unix + Windows `.ps1` runners). Empty `COMMENT` on `add_custom_command`; banners go through log only. Not part of the link or stamp contract. It hurts more today because every parent build re-enters every stage; after the stamps, the cap only matters on a real miss.

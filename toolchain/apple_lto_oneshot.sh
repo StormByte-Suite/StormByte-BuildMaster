@@ -84,6 +84,14 @@ while [[ $i -lt ${#args[@]} ]]; do
 			compile+=("$a")
 			link+=("$a")
 			;;
+		# -fprofile-generate is also a link flag: it selects libclang_rt.profile.
+		# Leaving it in the -f* compile-only bucket drops it from this second
+		# step, and an instrumented static archive then fails the probe with
+		# ___llvm_profile_instrument_target undefined.
+		-fprofile-generate|-fprofile-generate=*|-fprofile-instr-generate|-fprofile-instr-generate=*|-fcs-profile-generate|-fcs-profile-generate=*|-fprofile-use|-fprofile-use=*|-fprofile-instr-use|-fprofile-instr-use=*)
+			compile+=("$a")
+			link+=("$a")
+			;;
 		-m*)
 			compile+=("$a")
 			link+=("$a")
