@@ -33,7 +33,7 @@ If you landed here from a release link and have not read the tree:
 
 [Unreleased]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/2.1.2...HEAD
 
-## [2.1.2] - 2026-10-18
+## [2.1.2] - 2026-10-19
 
 ### Fixed
 
