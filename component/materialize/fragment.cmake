@@ -19,10 +19,8 @@
 ##       `<subdir>/<name>`, not a component, meta, CMake target, or existing
 ##       file) are appended to the produced name/file lists so the fragment
 ##       can create IMPORTED targets. Skipped for `executable` (those dests
-##       are not archives). They are *not* added to stage `OUTPUT`:
-##       `_bm_tools_*_stages` uses only the declared produced specs.
-##       `write_fragment` attaches a Ninja file rule
-##       (`OUTPUT <file>` `DEPENDS` `<id>_install`) for each extra.
+##       are not archives). All collected files are install BYPRODUCTS,
+##       so Ninja knows their producer and Make waits for publication.
 ## @note Seals GLOBAL `BUILDMASTER_COMPONENT_<id>_NAMES` and `_FILES`
 ##       from this collect (REPACK / meta read them).
 ## @note `_BM_RENAME_ENABLED` prefers sealed GLOBAL
@@ -184,15 +182,9 @@ endfunction()
 ##       not call `target_link_options`. An unused `@ONLY` substitution
 ##       is harmless if a leftover `@ _BM_LINKFLAGS_ITEMS @` remains.
 ## @note Library-spec `buildmaster_link` dests are folded into FILES by
-##       `collect_outputs` except in `executable` mode. Stage `OUTPUT` is
-##       the declared produced specs from `_bm_tools_*_stages`. After
-##       `include()`, each extra file that is not in that list gets:
-##         add_custom_command(OUTPUT <file> DEPENDS <id>_install
-##                            COMMAND ${CMAKE_COMMAND} -E true)
-##       The command does not write the file. `<id>_install` writes it as
-##       a side effect of the nested install. The rule exists so Ninja has
-##       a producer for `<file>` when a host target links the IMPORTED
-##       location. Do not drop this because Make passed locally.
+##       `collect_outputs` except in `executable` mode. The install target
+##       declares all collected files as BYPRODUCTS; do not add a second
+##       producer for those IMPORTED locations.
 ## @note STRIPRES / WHOLE ignored on a non-static mode are INFO. STRIPRES
 ##       INFO only when the user wrote the key (default is ON).
 ## @note Template pick: headers / shared / executable / else static.
@@ -317,46 +309,6 @@ function(_bm_materialize_write_fragment _component _deferred)
 		@ONLY
 	)
 	include("${_LIBRARY_CREATE_FILE}")
-
-	if(NOT _library_mode STREQUAL "headers" AND TARGET "${_component}_install")
-		set(_declared "")
-		if(_noinstall)
-			get_property(_base_libdir GLOBAL PROPERTY BUILDMASTER_COMPONENT_${_component}_BUILDDIR)
-		elseif(_library_mode STREQUAL "executable")
-			set(_base_libdir "${BUILDMASTER_INSTALL_BINDIR}")
-		else()
-			set(_base_libdir "${BUILDMASTER_INSTALL_LIBDIR}")
-		endif()
-		foreach(_spec IN LISTS _produced)
-			if(_spec STREQUAL "")
-				continue()
-			endif()
-			set(_pn "")
-			set(_pf "")
-			set(_pd "")
-			_bm_opt_append_spec(
-				"${_library_mode}" "${_spec}" "${_base_libdir}" _pn _pf _pd)
-			list(APPEND _declared ${_pf} ${_pd})
-		endforeach()
-		foreach(_file IN LISTS _LIBRARY_COMPONENT_FILES _LIBRARY_COMPONENT_DLL_FILES)
-			if(_file STREQUAL "")
-				continue()
-			endif()
-			list(FIND _declared "${_file}" _hit)
-			if(NOT _hit EQUAL -1)
-				continue()
-			endif()
-			add_custom_command(
-				OUTPUT "${_file}"
-				COMMAND "${CMAKE_COMMAND}" -E true
-				DEPENDS "${_component}_install"
-				COMMENT "[BuildMaster/Ninja    ]: Waiting for ${_component}_install to publish ${_file}"
-				VERBATIM
-			)
-			_bm_log_message(COMPONENT DEBUG
-				"Ninja file rule for spec-link '${_file}' via '${_component}_install")
-		endforeach()
-	endif()
 
 	set_property(GLOBAL PROPERTY BUILDMASTER_COMPONENT_${_component}_NAMES
 		"${_LIBRARY_COMPONENT_NAMES}")

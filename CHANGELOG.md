@@ -23,6 +23,10 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
+### Fixed
+
+- Clean builds and selectively deleted installed artifacts no longer leave CMake/Meson components on a false stamp hit. Build and install now have separate keys and artifact manifests: missing static archives, shared libraries (including versioned symlink targets), or installed headers trigger publication again without rebuilding intact nested products. Install targets validate on every build and declare their products as `BYPRODUCTS`, preserving consumer ordering with both Unix Makefiles and Ninja. A build-only request cannot certify an outdated installation; unchanged builds still skip the nested tools and installation.
+
 ### ToDo
 
 - [ ] **`BUILDMASTER_JOBS`.** Cap concurrent BM stage scripts (configure/build/install) independently of `ninja -jN`. Sync log lines so two oficios do not interleave. Needs a portable lock around `_bm_log_message` (Unix + Windows `.ps1` runners). Empty `COMMENT` on `add_custom_command`; banners go through log only. Not part of the link or stamp contract. It hurts more today because every parent build re-enters every stage; after the stamps, the cap only matters on a real miss.

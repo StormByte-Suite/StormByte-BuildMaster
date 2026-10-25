@@ -138,6 +138,26 @@ smoke dependencies explicitly on `run_buildmaster_smoke`.
 | `check_dependant_edges.cmake` | Configure | Edge missing or targets absent |
 | `check_smoke_artifacts.cmake` | After smoke install (`-P`) | Expected file missing under install prefix |
 
+### Stamp lifecycle regression (Linux)
+
+`run_buildmaster_stamp_lifecycle` is part of `run_buildmaster_smoke`. It runs
+isolated CMake and Meson dependencies under both Unix Makefiles and Ninja.
+Each case builds a shared consumer of static, versioned shared, and header-only
+components, then verifies:
+
+1. Initial build and execution of the linked consumer.
+2. An unchanged build with no install, dependency rebuild, or consumer relink.
+3. `--clean-first` followed by successful linking without dependency recompilation.
+4. Selective deletion of an installed archive, shared-library symlink, versioned
+   shared object, or header, followed by restoration.
+5. Parent reconfiguration after clean, with intact nested products reused.
+6. Migration of legacy stamps, source changes after a build-only request, and
+   recovery of a deleted nested build output.
+
+Install counters and Ninja-log digests distinguish real installs and builds
+from wrapper invocations; the consumer executable checks the linked values.
+Each run uses its own source copy and build directory under the harness tree.
+
 If a new *class* of check is needed (not just another line in a list), add a
 checker under `tests/harness/` and `include()` it from the harness
 `CMakeLists.txt`, still driven by data under `tests/expected/` when possible.

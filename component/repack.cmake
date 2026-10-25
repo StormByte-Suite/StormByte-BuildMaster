@@ -420,16 +420,7 @@ function(_bm_repack_materialize)
 		if(_kind STREQUAL "component")
 			get_property(_builddir GLOBAL PROPERTY
 				BUILDMASTER_COMPONENT_${_id}_BUILDDIR)
-			set(_repack_member_files "${_all_files}")
-			list(REMOVE_ITEM _repack_member_files
-				"${_builddir}/.bm-repack/${_id}.publisher")
-			if(_repack_member_files)
-				add_custom_command(
-					OUTPUT "${_out_path}"
-					APPEND
-					DEPENDS ${_repack_member_files}
-				)
-			endif()
+			# The install target checks the merge inputs on every invocation.
 			set(_stamp_file "${_builddir}/.bm-repack/${_id}.stamp")
 			set(_repack_ar "")
 			if(_ar_arg MATCHES "^-DCMAKE_AR=(.+)$")

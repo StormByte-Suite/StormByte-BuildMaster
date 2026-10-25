@@ -1,0 +1,1 @@
+option('fixture_mode', type: 'combo', choices: ['static', 'shared', 'headers'])

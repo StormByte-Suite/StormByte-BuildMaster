@@ -4,13 +4,13 @@
 # CMake only: file(SHA256), string(SHA256), file(LOCK). No sha256sum, no cat,
 # no shell. Git runs only when this leaf already has GIT={PATCH}.
 #
-# bm-stamp.key (builddir), written after a successful install:
+# bm-stamp.key (install) and bm-stamp.build (build), written on success:
 #   tree=<sha256>
 #   extra=<sha256>
 # bm-stamp.extra is the non-tree half in the clear (options, toolchain,
 # build type, IPO, mode, produced, OS/arch, ABI: compilers, flags, linker,
-# runtime). A later install cache reads these two files; it is not
-# implemented here.
+# runtime). Each key has an artifact manifest; a matching digest alone
+# does not prove that the stage's products still exist.
 #
 # bm-stamp.configured (builddir) holds the `extra` digest the nested build
 # tree was last configured with. A stage miss with an existing tree whose
@@ -83,9 +83,10 @@ endfunction()
 ## @param[in] _ipo_on  `BM_TC_IPO_ON` at stage generation.
 ## @param[in] _ipo_fat `BM_TC_IPO_FAT` at stage generation.
 ## @param[in] _tc      Toolchain profile name (may be empty).
+## @param[in] _outputs Required published artifacts.
 ## @note Sets `_BM_STAMP_*` in the caller. Those names are substituted into
 ##       the cmake and meson stage templates.
-function(_bm_stamp_bake _id _srcdir _builddir _ipo_on _ipo_fat _tc)
+function(_bm_stamp_bake _id _srcdir _builddir _ipo_on _ipo_fat _tc _outputs)
 	get_property(_optstr GLOBAL PROPERTY BUILDMASTER_COMPONENT_${_id}_OPTSTR)
 	get_property(_options GLOBAL PROPERTY BUILDMASTER_COMPONENT_${_id}_OPTIONS)
 	get_property(_mode GLOBAL PROPERTY BUILDMASTER_COMPONENT_${_id}_MODE)
@@ -153,6 +154,74 @@ options=${_options}
 	set(_BM_STAMP_PATCHES "${_patches}" PARENT_SCOPE)
 	set(_BM_STAMP_HOLDERS "${_holders}" PARENT_SCOPE)
 	set(_BM_STAMP_ENV "${_env}" PARENT_SCOPE)
+	set(_BM_STAMP_OUTPUTS "${_outputs}" PARENT_SCOPE)
+endfunction()
+
+## @brief Check the files recorded by a successful stage, including symlink targets.
+function(_bm_stamp_artifacts_current _manifest _out)
+	set(_ok FALSE)
+	if(EXISTS "${_manifest}")
+		set(_ok TRUE)
+		file(STRINGS "${_manifest}" _files)
+		foreach(_file IN LISTS _files)
+			if(NOT EXISTS "${_file}")
+				set(_ok FALSE)
+				break()
+			endif()
+		endforeach()
+	endif()
+	set(${_out} "${_ok}" PARENT_SCOPE)
+endfunction()
+
+## @brief Record surviving Ninja outputs, not installed copies of those outputs.
+function(_bm_stamp_record_build)
+	set(_files "")
+	set(_log "${BM_STAMP_BUILDDIR}/.ninja_log")
+	if(EXISTS "${_log}")
+		file(STRINGS "${_log}" _lines)
+		foreach(_line IN LISTS _lines)
+			if(_line MATCHES "^[0-9]+\t[0-9]+\t[0-9]+\t([^\t]+)\t")
+				set(_file "${CMAKE_MATCH_1}")
+				if(NOT IS_ABSOLUTE "${_file}")
+					set(_file "${BM_STAMP_BUILDDIR}/${_file}")
+				endif()
+				if(EXISTS "${_file}")
+					list(APPEND _files "${_file}")
+				endif()
+			endif()
+		endforeach()
+	endif()
+	# NOINSTALL rename can replace a Ninja output after the build stage.
+	if(BM_STAMP_BUILDONLY)
+		list(APPEND _files ${BM_STAMP_REQUIRED_OUTPUTS})
+	endif()
+	list(REMOVE_DUPLICATES _files)
+	file(WRITE "${BM_STAMP_BUILDDIR}/bm-stamp.build-files" "")
+	foreach(_file IN LISTS _files)
+		file(APPEND "${BM_STAMP_BUILDDIR}/bm-stamp.build-files" "${_file}\n")
+	endforeach()
+endfunction()
+
+## @brief Record the published tree after rename/PC/REPACK, never the shared prefix wholesale.
+function(_bm_stamp_record_install)
+	set(_files "${BM_STAMP_REQUIRED_OUTPUTS}")
+	if(NOT BM_STAMP_BUILDONLY AND EXISTS "${BM_STAMP_INSTALL_MANIFEST}")
+		file(STRINGS "${BM_STAMP_INSTALL_MANIFEST}" _installed)
+		foreach(_file IN LISTS _installed)
+			# Backend manifests contain pre-rename names and (Meson) directories.
+			if(EXISTS "${_file}" AND NOT IS_DIRECTORY "${_file}")
+				list(APPEND _files "${_file}")
+			endif()
+		endforeach()
+	endif()
+	list(REMOVE_DUPLICATES _files)
+	file(WRITE "${BM_STAMP_BUILDDIR}/bm-stamp.install-files" "")
+	foreach(_file IN LISTS _files)
+		if(NOT EXISTS "${_file}")
+			_bm_log_message(COMPONENT FATAL "stamp: installed artifact missing: ${_file}")
+		endif()
+		file(APPEND "${BM_STAMP_BUILDDIR}/bm-stamp.install-files" "${_file}\n")
+	endforeach()
 endfunction()
 
 ## @brief Whether the nested tree in `_builddir` was configured with `_extra`.
@@ -444,12 +513,33 @@ function(_bm_stamp_enter _id _stage _srcdir _builddir _extra _workdir _patches _
 	set(BM_STAMP_TREE "${_tree}" PARENT_SCOPE)
 	set(_want "tree=${_tree}\nextra=${_extra}")
 	set(_match FALSE)
-	set(_keyfile "${_builddir}/bm-stamp.key")
+	if(_stage STREQUAL "install")
+		set(_keyfile "${_builddir}/bm-stamp.key")
+		set(_manifest "${_builddir}/bm-stamp.install-files")
+	else()
+		set(_keyfile "${_builddir}/bm-stamp.build")
+		set(_manifest "${_builddir}/bm-stamp.build-files")
+	endif()
 	if(EXISTS "${_keyfile}")
 		file(READ "${_keyfile}" _have)
 		string(STRIP "${_have}" _have)
 		if("${_have}" STREQUAL "${_want}")
 			set(_match TRUE)
+		endif()
+	endif()
+
+	if(_match)
+		if(_stage STREQUAL "install")
+			_bm_stamp_artifacts_current("${_manifest}" _match)
+			foreach(_file IN LISTS BM_STAMP_REQUIRED_OUTPUTS)
+				if(NOT EXISTS "${_file}")
+					set(_match FALSE)
+				endif()
+			endforeach()
+		elseif(NOT EXISTS "${_builddir}/build.ninja")
+			set(_match FALSE)
+		elseif(_stage STREQUAL "build")
+			_bm_stamp_artifacts_current("${_manifest}" _match)
 		endif()
 	endif()
 
@@ -466,22 +556,25 @@ function(_bm_stamp_enter _id _stage _srcdir _builddir _extra _workdir _patches _
 		set(BM_STAMP_SKIP TRUE PARENT_SCOPE)
 		set(BM_STAMP_HOLD FALSE PARENT_SCOPE)
 		file(WRITE "${_builddir}/bm-stamp.hit" "${_id}\n")
-		_bm_log_message(COMPONENT STATUS "stamp hit ${_id}")
+		_bm_log_message(COMPONENT STATUS "stamp hit ${_id} (${_stage})")
 	else()
+		if(_stage STREQUAL "build")
+			# A successful build must not certify an installation of older inputs.
+			file(REMOVE "${_builddir}/bm-stamp.key")
+		endif()
 		if(_has)
 			set(BM_STAMP_HOLD TRUE PARENT_SCOPE)
 		endif()
 		file(REMOVE "${_builddir}/bm-stamp.hit")
-		_bm_log_message(COMPONENT DEBUG "stamp miss ${_id}")
+		_bm_log_message(COMPONENT DEBUG "stamp miss ${_id} (${_stage})")
 	endif()
 endfunction()
 
 ## @brief Finish a stage that did not skip.
 ## @param[in] _commit `create` writes `bm-stamp.key` (install, after oficios).
-##            `refresh` updates it only when it already exists (build).
+##            `refresh` writes the independent build key and artifact manifest.
 ##            Anything else does not write. Configure passes `0`.
-##            Build must not create the key: the install command in the same
-##            ninja would see a hit and skip publishing.
+##            Build never writes the install key.
 ## @note A patched root is reset when no live holder remains. The digest
 ##       stored is the one computed in `_bm_stamp_enter`, before the build
 ##       could write into the srcdir.
@@ -506,8 +599,14 @@ function(_bm_stamp_leave _commit)
 	set(_keyfile "${BM_STAMP_BUILDDIR}/bm-stamp.key")
 	set(_do FALSE)
 	if("${_commit}" STREQUAL "create")
+		_bm_stamp_record_install()
+		if(BM_STAMP_BUILDONLY)
+			_bm_stamp_record_build()
+		endif()
 		set(_do TRUE)
-	elseif("${_commit}" STREQUAL "refresh" AND EXISTS "${_keyfile}")
+	elseif("${_commit}" STREQUAL "refresh")
+		_bm_stamp_record_build()
+		set(_keyfile "${BM_STAMP_BUILDDIR}/bm-stamp.build")
 		set(_do TRUE)
 	endif()
 	if(_do)

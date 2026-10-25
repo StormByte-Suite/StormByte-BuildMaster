@@ -382,6 +382,28 @@ stored under the real id.
 
 ---
 
+## Incremental builds and clean
+
+CMake and Meson components keep separate build and install stamps in their
+nested build directories. A matching source/options digest is not enough for
+an install hit: the declared products and the recorded installed files must
+still exist. The install manifest is recorded after rename and the other
+post-install operations, and includes installed headers and shared-library
+symlinks as well as archives.
+
+The install target checks this contract on each parent build. Its published
+files are `BYPRODUCTS`, and consumers wait for that target before compiling or
+linking. An unchanged build skips the nested tools and installation, without
+relinking consumers. After `cmake --build build --clean-first`, or selective
+deletion inside the install prefix, missing files are installed again. If the
+nested Ninja products are intact, the dependency is not recompiled. Meson
+installation uses `--no-rebuild`; compilation belongs to the build stage.
+Reconfiguring the parent after clean does not discard this distinction.
+
+Existing digest-only stamps are upgraded by checking the nested build and
+publishing once to record the artifact manifests; a valid nested build tree
+is retained.
+
 ## Exported links (`links/`)
 
 This is the “I only wanted png” clause.

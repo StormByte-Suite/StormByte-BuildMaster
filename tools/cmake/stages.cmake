@@ -17,8 +17,8 @@
 ## @param[in] _options List of CMake options to pass to the component's
 ##            configure step.
 ## @param[in] _library_mode Either `static`, `shared`, or `headers`.
-## @param[in] _output_libraries One or more full paths to the built
-##            library/artifact(s) produced by the component; exported as
+## @param[in] _output_libraries Full paths to the published artifacts
+##            (install BYPRODUCTS, or NOINSTALL build products); exported as
 ##            `_CMAKE_OUTPUT_LIBRARIES` for template use.
 ## @param[in] _indent_level Optional (ARGV10) tab count for eager configure
 ##            STATUS. Exported as `_CMAKE_INDENT_LEVEL` (digit) and
@@ -465,7 +465,8 @@ function(_bm_tools_cmake_stages _file_configure _file_compile _file_install _com
 
 	_bm_stamp_bake(
 		"${_component}" "${_srcdir}" "${_builddir}"
-		"${BM_TC_IPO_ON}" "${BM_TC_IPO_FAT}" "${_toolchain_raw}")
+		"${BM_TC_IPO_ON}" "${BM_TC_IPO_FAT}" "${_toolchain_raw}"
+		"${_output_libraries}")
 
 	set(_CMAKE_CONFIGURE_FILE
 		"${BUILDMASTER_SCRIPTS_CMAKEDIR}/${_CMAKE_COMPONENT_SAFE}_configure.cmake"

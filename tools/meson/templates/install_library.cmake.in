@@ -13,6 +13,12 @@ if(EXISTS "@BUILDMASTER_FAIL_MARKER@")
 endif()
 
 include("@BUILDMASTER_SRCDIR@/component/stamp/gate.cmake")
+set(BM_STAMP_REQUIRED_OUTPUTS "@_BM_STAMP_OUTPUTS@")
+if(NOT "@_BM_PC_OUT@" STREQUAL "")
+	list(APPEND BM_STAMP_REQUIRED_OUTPUTS "@_BM_PC_OUT@")
+endif()
+set(BM_STAMP_BUILDONLY "@_BM_BUILDONLY@")
+set(BM_STAMP_INSTALL_MANIFEST "@_MESON_BUILD_DIR@/meson-logs/install-log.txt")
 _bm_stamp_enter(
 	"@_BM_STAMP_ID@"
 	"install"
@@ -45,7 +51,7 @@ endif()
 
 if(NOT "@_BM_BUILDONLY@" STREQUAL "1")
 	execute_process(
-		COMMAND @_MESON_SILENT_CMD_PREFIX@ install -C "@_MESON_BUILD_DIR@"
+		COMMAND @_MESON_SILENT_CMD_PREFIX@ install --no-rebuild -C "@_MESON_BUILD_DIR@"
 		WORKING_DIRECTORY "@_MESON_BUILD_DIR@"
 		RESULT_VARIABLE _BM_STAGE_RC
 	)

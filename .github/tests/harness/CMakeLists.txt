@@ -265,6 +265,29 @@ add_custom_target(run_buildmaster_negative
 )
 add_dependencies(run_buildmaster_smoke run_buildmaster_negative)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	add_custom_target(run_buildmaster_stamp_lifecycle)
+	foreach(_backend cmake meson)
+		foreach(_generator "Unix Makefiles" Ninja)
+			string(MAKE_C_IDENTIFIER "${_backend}_${_generator}" _case)
+			add_custom_target(stamp_lifecycle_${_case}
+				COMMAND ${CMAKE_COMMAND}
+					"-DBM_ROOT=${BM_TEST_REPO_ROOT}"
+					"-DWORK_DIR=${CMAKE_BINARY_DIR}/stamp-lifecycle-${_case}"
+					"-DGENERATOR=${_generator}"
+					"-DBACKEND=${_backend}"
+					"-DC_COMPILER=${CMAKE_C_COMPILER}"
+					"-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
+					-P "${BM_TEST_FIXTURES_DIR}/stamp-lifecycle/check.cmake"
+				COMMENT "[BuildMaster/Core     ]: stamp lifecycle (${_backend}, ${_generator})"
+				VERBATIM
+			)
+			add_dependencies(run_buildmaster_stamp_lifecycle stamp_lifecycle_${_case})
+		endforeach()
+	endforeach()
+	add_dependencies(run_buildmaster_smoke run_buildmaster_stamp_lifecycle)
+endif()
+
 # ---------------------------------------------------------------------------
 # One local entry: same coverage as GHA harness + consumer jobs.
 # ---------------------------------------------------------------------------
