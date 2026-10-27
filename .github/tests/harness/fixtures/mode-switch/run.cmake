@@ -43,13 +43,22 @@ endfunction()
 ## @param[in]  _cflags  Top-level CMAKE_C_FLAGS.
 ## @param[out] _out_var Parent-scope configure + build output.
 function(_ms_step _label _mode _cflags _out_var)
+	set(_build_type "${MS_BUILD_TYPE}")
+	if(ARGC GREATER 4)
+		set(_build_type "${ARGV4}")
+	endif()
+	set(_ndebug "")
+	if(ARGC GREATER 5)
+		set(_ndebug "${ARGV5}")
+	endif()
 	_ms_run("${_label} configure" _cfg
 		"${CMAKE_COMMAND}" -S "${MS_SRC}" -B "${_bld}" -G "${MS_GENERATOR}"
-		"-DCMAKE_BUILD_TYPE=${MS_BUILD_TYPE}"
+		"-DCMAKE_BUILD_TYPE=${_build_type}"
 		"-DCMAKE_C_COMPILER=${MS_C_COMPILER}"
 		"-DCMAKE_CXX_COMPILER=${MS_CXX_COMPILER}"
 		"-DCMAKE_C_FLAGS=${_cflags}"
 		"-DMS_BM_ROOT=${MS_BM_ROOT}"
+		"-DMS_NDEBUG=${_ndebug}"
 		"-DMS_MODE=${_mode}")
 	_ms_run("${_label} build" _bout "${CMAKE_COMMAND}" --build "${_bld}")
 	set(${_out_var} "${_cfg}\n${_bout}" PARENT_SCOPE)
@@ -57,6 +66,13 @@ endfunction()
 
 ## @brief FATAL unless both nested trees carry `_mode` and `_mark` (or no mark).
 function(_ms_check _label _mode _mark)
+	if(ARGC GREATER 3)
+		file(READ "${_cm}/build-type.txt" _actual_type)
+		if(NOT _actual_type STREQUAL "${ARGV3}")
+			message(FATAL_ERROR
+				"mode-switch: ${_label}: generated CMake type '${_actual_type}', want ${ARGV3}")
+		endif()
+	endif()
 	set(_want "OFF")
 	if(_mode STREQUAL "shared")
 		set(_want "ON")
@@ -79,14 +95,31 @@ function(_ms_check _label _mode _mark)
 	math(EXPR _last "${_n} - 1")
 	set(_lib "")
 	set(_cargs "")
+	set(_type "")
+	set(_ndebug "")
 	foreach(_i RANGE ${_last})
 		string(JSON _name GET "${_json}" ${_i} name)
 		if(_name STREQUAL "default_library")
 			string(JSON _lib GET "${_json}" ${_i} value)
 		elseif(_name STREQUAL "c_args")
 			string(JSON _cargs GET "${_json}" ${_i} value)
+		elseif(_name STREQUAL "buildtype")
+			string(JSON _type GET "${_json}" ${_i} value)
+		elseif(_name STREQUAL "b_ndebug")
+			string(JSON _ndebug GET "${_json}" ${_i} value)
 		endif()
 	endforeach()
+	if(ARGC GREATER 3)
+		string(TOLOWER "${ARGV3}" _want_type)
+		set(_want_ndebug "if-release")
+		if(ARGC GREATER 4)
+			set(_want_ndebug "${ARGV4}")
+		endif()
+		if(NOT _type STREQUAL _want_type OR NOT _ndebug STREQUAL _want_ndebug)
+			message(FATAL_ERROR
+				"mode-switch: ${_label}: Meson buildtype=${_type} b_ndebug=${_ndebug}, want ${_want_type}/${_want_ndebug}")
+		endif()
+	endif()
 	if(NOT _lib STREQUAL _mode)
 		message(FATAL_ERROR
 			"mode-switch: ${_label}: nested Meson kept default_library=${_lib}, want ${_mode}")
@@ -127,5 +160,19 @@ _ms_check("abi" shared "MS_ABI_MARK")
 _ms_step("unchanged" shared "-DMS_ABI_MARK=1" _out)
 _ms_reconfigured("unchanged" "${_out}" FALSE)
 _ms_check("unchanged" shared "MS_ABI_MARK")
+
+_ms_step("debug" shared "-DMS_ABI_MARK=1" _out Debug)
+_ms_check("debug" shared "MS_ABI_MARK" Debug)
+
+_ms_step("release" shared "-DMS_ABI_MARK=1" _out Release)
+_ms_reconfigured("release" "${_out}" TRUE)
+_ms_check("release" shared "MS_ABI_MARK" Release)
+
+_ms_step("release unchanged" shared "-DMS_ABI_MARK=1" _out Release)
+_ms_reconfigured("release unchanged" "${_out}" FALSE)
+_ms_check("release unchanged" shared "MS_ABI_MARK" Release)
+
+_ms_step("explicit assertions" shared "-DMS_ABI_MARK=1" _out Release false)
+_ms_check("explicit assertions" shared "MS_ABI_MARK" Release false)
 
 message(STATUS "mode-switch: OK")

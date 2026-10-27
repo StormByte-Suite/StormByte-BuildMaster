@@ -21,11 +21,15 @@ buildmaster_component(
 
 # Meson import-library naming on Windows differs per toolchain; Unix only.
 if(NOT WIN32)
+	set(_meson_options "")
+	if(NOT "${MS_NDEBUG}" STREQUAL "")
+		list(APPEND _meson_options "-Db_ndebug=${MS_NDEBUG}")
+	endif()
 	buildmaster_component(
 		ms-meson
 		"Harness mode-switch Meson"
 		"${CMAKE_CURRENT_SOURCE_DIR}/meson"
-		""
+		"${_meson_options}"
 		${MS_MODE}
 		"msmeson"
 	)

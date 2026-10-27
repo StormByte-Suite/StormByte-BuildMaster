@@ -98,7 +98,8 @@ function(_bm_stamp_bake _id _srcdir _builddir _ipo_on _ipo_fat _tc _outputs)
 	endif()
 	string(TOUPPER "${CMAKE_BUILD_TYPE}" _bt)
 	set(_text
-"build_type=${CMAKE_BUILD_TYPE}
+"buildmaster_version=${BUILDMASTER_VERSION}
+build_type=${CMAKE_BUILD_TYPE}
 system=${CMAKE_SYSTEM_NAME}
 arch=${CMAKE_SYSTEM_PROCESSOR}
 compiler=${CMAKE_C_COMPILER}

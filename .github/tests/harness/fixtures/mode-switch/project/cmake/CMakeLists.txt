@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(ms-cmake C)
+file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/build-type.txt"
+	CONTENT "${CMAKE_BUILD_TYPE}")
 include(GNUInstallDirs)
 
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)

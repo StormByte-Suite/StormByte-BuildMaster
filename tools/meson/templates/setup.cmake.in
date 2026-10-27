@@ -115,6 +115,7 @@ if(NOT EXISTS "@_MESON_BUILD_DIR@/build.ninja")
 		"--prefix=@BUILDMASTER_INSTALL_DIR@"
 		"--libdir=@CMAKE_INSTALL_LIBDIR@"
 		"-Db_lto=@LTO_ENABLED@"
+		"-Db_ndebug=if-release"
 		@_MESON_OPTIONS@
 	)
 

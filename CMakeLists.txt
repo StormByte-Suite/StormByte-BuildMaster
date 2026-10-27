@@ -65,6 +65,16 @@ _bm_log_level_init()
 # -----------------------------------------------------------------------------
 # 1. Core directory variables
 # -----------------------------------------------------------------------------
+get_property(_bm_bootstrapped GLOBAL PROPERTY BUILDMASTER_BOOTSTRAPPED)
+if(BUILDMASTER_CONFIGURED AND NOT _bm_bootstrapped)
+	# A cached bootstrap belongs to the previous configure, not a nested host.
+	if((DEFINED BUILDMASTER_HOST_BINARY_DIR
+			AND BUILDMASTER_HOST_BINARY_DIR STREQUAL CMAKE_BINARY_DIR)
+			OR (NOT DEFINED BUILDMASTER_HOST_BINARY_DIR
+				AND NOT CMAKE_TOOLCHAIN_FILE STREQUAL BUILDMASTER_TOOLCHAIN_FILE))
+		set(BUILDMASTER_CONFIGURED FALSE)
+	endif()
+endif()
 # When the host project was configured with -DCMAKE_TOOLCHAIN_FILE pointing at
 # an existing BuildMaster toolchain.cmake, that file already set
 # BUILDMASTER_CONFIGURED and the full BUILDMASTER_* / ENV_* snapshot. init_vars
@@ -122,6 +132,7 @@ include("${BUILDMASTER_ROOT}/helpers.cmake")
 # Reset must run before any export*. Modules register lines into a global
 # property; a single write at the end materializes toolchain.cmake. Never call
 # reset/write from a nested bootstrap (guard above).
+set_property(GLOBAL PROPERTY BUILDMASTER_BOOTSTRAPPED TRUE)
 _bm_tc_reset()
 include("${BUILDMASTER_SRCDIR}/update_toolchain.cmake")
 
