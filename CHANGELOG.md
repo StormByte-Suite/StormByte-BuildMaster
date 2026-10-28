@@ -42,6 +42,7 @@ If you landed here from a release link and have not read the tree:
 ### Fixed
 
 - Reconfiguring an outer host refreshes the generated toolchain instead of treating its cached bootstrap as a nested configure. Switching Debug to Release now reaches the actual nested CMake configuration, rather than only its cache. Nested hosts still reuse the outer bootstrap.
+- Refreshing unchanged parent/component toolchains, Meson native files and Apple compiler wrappers preserves their timestamps, avoiding unnecessary nested regeneration when migrating legacy stamps.
 - Meson defaults to `b_ndebug=if-release`, matching CMake's Release assertion policy. Explicit component options still override this default.
 - Component stamps include the BuildMaster version so an upgrade cannot reuse artifacts configured with the previous stage/toolchain behavior.
 

@@ -80,7 +80,7 @@ function(_bm_tc_apple_lto_wrapper out_var real tag)
 	file(CHMOD "${_impl}"
 		FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
 			GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-	file(WRITE "${_path}" "#!/bin/bash\nexec \"${_impl}\" \"${real}\" \"$@\"\n")
+	_bm_tc_write_if_changed("${_path}" "#!/bin/bash\nexec \"${_impl}\" \"${real}\" \"$@\"\n")
 	file(CHMOD "${_path}"
 		FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
 			GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
@@ -277,7 +277,7 @@ function(_bm_tc_write_meson_native_file profile_key c_compiler cxx_compiler)
 		string(APPEND _content "\n${_prefix_block}")
 	endif()
 
-	file(WRITE "${_path}" "${_content}")
+	_bm_tc_write_if_changed("${_path}" "${_content}")
 
 	set(${_var} "${_path}" PARENT_SCOPE)
 	_bm_tc_export("${_var}" "${_path}")
