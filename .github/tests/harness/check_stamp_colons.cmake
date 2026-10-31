@@ -1,0 +1,42 @@
+# Colons are valid Unix filename characters, not path-list separators.
+if(WIN32)
+	return()
+endif()
+
+set(_base "${CMAKE_CURRENT_BINARY_DIR}/stamp-colons")
+file(REMOVE_RECURSE "${_base}")
+set(_root "${_base}/source:tree")
+set(_build "${_root}/build:dir")
+file(MAKE_DIRECTORY "${_root}/nested:dir" "${_build}" "${_base}/outside:dir")
+file(WRITE "${_root}/nested:dir/USB Device 0x46d:0x9a4--USB Mixer" "one\n")
+file(WRITE "${_build}/generated.txt" "generated\n")
+file(WRITE "${_base}/outside:dir/payload.txt" "outside\n")
+_bm_stamp_test_link("../outside:dir" "${_root}/link:dir")
+_bm_stamp_test_link("missing:target" "${_root}/dangling:link")
+
+_bm_stamp_tree_sha("${_root}" "${_build}" _first)
+_bm_stamp_tree_sha("${_root}/../source:tree" "${_root}/nested:dir/../build:dir" _normalized)
+if(NOT "${_first}" STREQUAL "${_normalized}")
+	_bm_log_message(CORE FATAL "stamp-colons: normalized paths must preserve the digest")
+endif()
+
+file(WRITE "${_build}/generated.txt" "changed\n")
+file(WRITE "${_base}/outside:dir/payload.txt" "changed\n")
+_bm_stamp_tree_sha("${_root}" "${_build}" _excluded)
+if(NOT "${_first}" STREQUAL "${_excluded}")
+	_bm_log_message(CORE FATAL "stamp-colons: build directories and link targets must stay excluded")
+endif()
+
+file(WRITE "${_root}/nested:dir/USB Device 0x46d:0x9a4--USB Mixer" "two\n")
+_bm_stamp_tree_sha("${_root}" "${_build}" _changed)
+if("${_first}" STREQUAL "${_changed}")
+	_bm_log_message(CORE FATAL "stamp-colons: changing a colon-named file must invalidate the digest")
+endif()
+
+_bm_stamp_test_link("missing:other" "${_root}/dangling:link")
+_bm_stamp_tree_sha("${_root}" "${_build}" _retargeted)
+if("${_changed}" STREQUAL "${_retargeted}")
+	_bm_log_message(CORE FATAL "stamp-colons: changing a colon-named link target must invalidate the digest")
+endif()
+
+_bm_log_message(CORE STATUS "stamp-colons contract: OK")

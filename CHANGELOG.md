@@ -23,10 +23,6 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
-### Fixed
-
-- Clean builds and selectively deleted installed artifacts no longer leave CMake/Meson components on a false stamp hit. Build and install now have separate keys and artifact manifests: missing static archives, shared libraries (including versioned symlink targets), or installed headers trigger publication again without rebuilding intact nested products. Install targets validate on every build and declare their products as `BYPRODUCTS`, preserving consumer ordering with both Unix Makefiles and Ninja. A build-only request cannot certify an outdated installation; unchanged builds still skip the nested tools and installation.
-
 ### ToDo
 
 - [ ] **`BUILDMASTER_JOBS`.** Cap concurrent BM stage scripts (configure/build/install) independently of `ninja -jN`. Sync log lines so two oficios do not interleave. Needs a portable lock around `_bm_log_message` (Unix + Windows `.ps1` runners). Empty `COMMENT` on `add_custom_command`; banners go through log only. Not part of the link or stamp contract. It hurts more today because every parent build re-enters every stage; after the stamps, the cap only matters on a real miss.
@@ -35,7 +31,16 @@ If you landed here from a release link and have not read the tree:
 - [ ] **Install-tree cache (2.1).** A component may restore its installed prefix from a blob instead of compile+install. Staging prefix per id, then an atomic copy into `BUILDMASTER_INSTALL_DIR` (same layout as a live install: libs, headers, `*Config.cmake`, `.pc`). Not a builddir cache (ccache/sccache already cover objects). A HIT is "the stamp is already current": restore, touch `_configure` / `_build` / `_install`, do not enter the nested build, do not re-apply PATCH. A MISS runs the stamp command (PATCH, build, post oficios, write the blob, `RESET`). The blob is the prefix after those oficios, including the `.pc` rewrite, not the nested builddir. A HIT must not leave a `build.ninja` that was generated against the patched tree; the next real MISS would rescan the reset `CMakeLists.txt`. The key is computed without mutating the worktree, because the steady state is a clean tree after `RESET`: pin, patch-file bytes, normalized options, toolchain profile, `CMAKE_BUILD_TYPE`, IPO on/off, `mode`, `produced`, host OS/arch. The unpatched pin alone is not enough. `CACHEKEY=` / `CACHE={…}` is extra salt, not the only way to tell `-Dlibx265=enabled` from disabled. Leaving options out of the default key is a silent wrong HIT once stamps stop the rescan. `NOINSTALL` never writes. `REPACK` caches the publisher archive, not each member, unless that member is itself cached. A partial HIT (lib without `Config.cmake`) is FATAL, not a fallback. The skip-configure wait is in: a consumer that did not configure the id still waits on the winner's `_install` (or on `<id>_install` when that stage is in this process). A restore that re-enters the nested build still races. The stamp already writes `bm-stamp.key` (`tree` + `extra` sha256) and `bm-stamp.extra` (the non-tree inputs) for that key. A cache HIT is still not implemented.
 - [ ] **RENAME should rewrite installed `.pc` files to the produced stem.** `RENAME` already moves `libfoo-static.a` / `jpeg-static.lib` / `libpng16.a` to the `produced` name. The matching `*.pc` (`Libs: -lpng16`, `-ljpeg`, `-ltesseract55`) is left untouched, so Meson/`pkg-config --static --libs` still looks for the pre-rename artifact. Consumers fail with LNK1104 / "library not found" even though the archive exists under the produced stem. After renaming an archive, scan `${BUILDMASTER_INSTALL_DIR}/**/pkgconfig/*.pc` (or the component's own `.pc`) and rewrite `-l<old-stem>` (and `Name:` when it is only the old stem) to `-l<produced>`. Do not invent new `.pc` files. This is a post-install oficio: the `_install` stamp does not close, and the cache blob is not written, until the `.pc` matches the produced stem. Shared-library sonames and CMake `*Config.cmake` / `*Targets.cmake` stay a separate ticket (`find_package` paths vs `pkg-config`).
 
-[Unreleased]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/2.1.3...HEAD
+[Unreleased]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/2.1.4...HEAD
+
+## [2.1.4] - 2026-10-31
+
+### Fixed
+
+- Source-tree stamps preserve colons in Unix filenames, directories and symbolic-link targets. Path normalization no longer treats individual paths as search-path lists, fixing PulseAudio source hashing. The harness covers colon-named paths, digest invalidation, excluded build directories and symbolic links.
+- Clean builds and selectively deleted installed artifacts no longer leave CMake/Meson components on a false stamp hit. Build and install now have separate keys and artifact manifests: missing static archives, shared libraries (including versioned symlink targets), or installed headers trigger publication again without rebuilding intact nested products. Install targets validate on every build and declare their products as `BYPRODUCTS`, preserving consumer ordering with both Unix Makefiles and Ninja. A build-only request cannot certify an outdated installation; unchanged builds still skip the nested tools and installation.
+
+[2.1.4]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/2.1.3...2.1.4
 
 ## [2.1.3] - 2026-10-28
 
