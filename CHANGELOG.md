@@ -38,6 +38,7 @@ If you landed here from a release link and have not read the tree:
 ### Fixed
 
 - Re-enabled components and restored build caches no longer mistake their own link metadata for another build's, preserving the install dependencies and selected static archives.
+- Reconfiguration removes disabled host dependencies from link metadata and does not apply stale bundled metadata to caller-provided targets.
 
 [2.1.5]: https://github.com/StormByte-Suite/StormByte-BuildMaster/compare/2.1.4...2.1.5
 

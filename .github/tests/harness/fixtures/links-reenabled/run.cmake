@@ -31,17 +31,18 @@ function(_rr_run _label _out_var)
 	set(${_out_var} "${_stdout}\n${_stderr}" PARENT_SCOPE)
 endfunction()
 
-function(_rr_configure _label _enabled _out_var)
+function(_rr_configure _label _enabled _system _out_var)
 	_rr_run("${_label} configure" _output
 		"${CMAKE_COMMAND}" -S "${RR_SRC}" -B "${_bld}" -G "${RR_GENERATOR}"
 		"-DCMAKE_BUILD_TYPE=${RR_BUILD_TYPE}"
 		"-DCMAKE_C_COMPILER=${RR_C_COMPILER}"
 		"-DRR_BM_ROOT=${RR_BM_ROOT}"
-		"-DRR_ENABLE=${_enabled}")
+		"-DRR_ENABLE=${_enabled}"
+		"-DRR_SYSTEM=${_system}")
 	set(${_out_var} "${_output}" PARENT_SCOPE)
 endfunction()
 
-function(_rr_build_and_run _label)
+function(_rr_build_and_run _label _bundled)
 	set(_build_args --build "${_bld}" --parallel "${_jobs}")
 	if(NOT "${RR_BUILD_TYPE}" STREQUAL "")
 		list(APPEND _build_args --config "${RR_BUILD_TYPE}")
@@ -56,14 +57,16 @@ function(_rr_build_and_run _label)
 		set(ENV{PATH} "${_bld}/bin;${_bld}/bin/${RR_BUILD_TYPE};${_bld};${_bld}/${RR_BUILD_TYPE};${_bld}/buildmaster/install/bin;$ENV{PATH}")
 	endif()
 	_rr_run("${_label} executable" _output "${_exe}")
-	_rr_run("${_label} install target" _output
-		"${CMAKE_COMMAND}" ${_build_args} --target rr-dep_install)
+	if(_bundled)
+		_rr_run("${_label} install target" _output
+			"${CMAKE_COMMAND}" ${_build_args} --target rr-dep_install)
+	endif()
 endfunction()
 
-_rr_configure("initial" ON _out)
-_rr_build_and_run("initial")
+_rr_configure("initial" ON OFF _out)
+_rr_build_and_run("initial" TRUE)
 
-_rr_configure("disabled" OFF _out)
+_rr_configure("disabled" OFF OFF _out)
 set(_links "${_bld}/buildmaster/links/rr-dep.cmake")
 if(NOT EXISTS "${_links}")
 	message(FATAL_ERROR "links-reenabled: dependency metadata disappeared while disabled")
@@ -72,12 +75,20 @@ file(STRINGS "${_bld}/bm-owned-links.txt" _owned)
 if("rr-dep" IN_LIST _owned)
 	message(FATAL_ERROR "links-reenabled: disabled dependency remains in the current ownership list")
 endif()
+file(READ "${_bld}/buildmaster/links/rr-host.cmake" _host_links)
+if("${_host_links}" MATCHES "set\\(_bm_links_dests \"[^\"]*rr-dep")
+	message(FATAL_ERROR "links-reenabled: disabled dependency remains in the host metadata")
+endif()
+_rr_build_and_run("disabled" FALSE)
 
-_rr_configure("re-enabled" ON _out)
-_rr_build_and_run("re-enabled")
+_rr_configure("system" ON ON _out)
+_rr_build_and_run("system" FALSE)
+
+_rr_configure("re-enabled" ON OFF _out)
+_rr_build_and_run("re-enabled" TRUE)
 
 file(REMOVE "${_bld}/bm-owned-links.txt")
-_rr_configure("missing ownership list" ON _out)
-_rr_build_and_run("missing ownership list")
+_rr_configure("missing ownership list" ON OFF _out)
+_rr_build_and_run("missing ownership list" TRUE)
 
 message(STATUS "links-reenabled: OK")
