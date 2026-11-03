@@ -429,11 +429,10 @@ endfunction()
 ##       nested configure returns: the id plus dests already stored in
 ##       its links file, and a wait on `<id>_install` or on the component
 ##       that created the file.
-## @note An id listed in this build dir's `bm-owned-links.txt` was
-##       published by this same process last configure. Its leftover
-##       links file is not another process: configure it again. Skipping
-##       it on a ninja-driven nested reconfigure dropped `<id>_install`
-##       and the host library compiled before its dependencies.
+## @note An id listed in this build dir's `bm-owned-links.txt`, or whose
+##       links file names this build dir as its writer, belongs to this
+##       process and must be configured again. The writer also identifies
+##       components absent from the last configure's ownership list.
 function(_bm_links_try_reuse _id _title out_skip)
 	_bm_log_message(COMPONENT LOWLEVEL "Entering _bm_links_try_reuse")
 	_bm_links_reuse_needs_reset()
@@ -472,13 +471,21 @@ function(_bm_links_try_reuse _id _title out_skip)
 		_bm_path_sanitize(_safe "${_id}")
 		set(_file "${BUILDMASTER_LINKS_DIR}/${_safe}.cmake")
 		_bm_links_owned_prev(_owned)
-		if(EXISTS "${_file}" AND "${_id}" IN_LIST _owned)
+		set(_writer "")
+		if(EXISTS "${_file}")
+			file(READ "${_file}" _txt)
+			if("${_txt}" MATCHES "set\\(_BM_LINKS_WRITER \"([^\"]*)\"\\)")
+				set(_writer "${CMAKE_MATCH_1}")
+			endif()
+		endif()
+		_bm_path_normalize(_current_writer "${CMAKE_BINARY_DIR}")
+		if(EXISTS "${_file}" AND ("${_id}" IN_LIST _owned
+				OR _writer STREQUAL _current_writer))
 			_bm_log_message(COMPONENT DEBUG
 				"reuse: '${_id}' was published by this build dir; configuring again")
 		elseif(EXISTS "${_file}")
 			# The template only creates ALIAS targets. Without the table entry
 			# buildmaster_link(host Alias) stores the alias, not the id.
-			file(READ "${_file}" _txt)
 			set(_file_aliases "")
 			if("${_txt}" MATCHES "set\\(_bm_links_aliases \"([^\"]*)\"\\)")
 				set(_file_aliases "${CMAKE_MATCH_1}")

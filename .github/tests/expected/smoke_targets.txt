@@ -114,6 +114,9 @@ RaceB_install
 links_race_test
 links_race_test_run
 
+# links-reenabled
+links_reenabled_run
+
 # links-static-closure
 sl-db_install
 sl-pq_install
